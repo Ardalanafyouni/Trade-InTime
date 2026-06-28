@@ -7,52 +7,104 @@ from telegram.ext import (
 )
 from analyzer import CryptoAnalyzer
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
+CHOOSING_LANG, WAITING_SYMBOL, WAITING_TIMEFRAME = range(3)
 
-TIMEFRAMES = {
-    "1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه",
-    "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی",
+TEXTS = {
+    'fa': {
+        'welcome': "👋 *سلام! به ربات تحلیل کریپتو خوش آمدید*\n\nتحلیل لانگ 📈 و شورت 📉 بر اساس:\n• الگوهای کندل‌استیک\n• سطوح فیبوناچی\n• RSI, MACD, Bollinger\n\nدستور /analyze را بزنید.",
+        'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
+        'choose_tf': "تایم‌فریم را انتخاب کنید:",
+        'analyzing': "⏳ در حال تحلیل",
+        'error': "❌ خطا:",
+        'cancel': "❌ لغو شد.",
+        'help': "/analyze - شروع تحلیل\n/lang - تغییر زبان",
+        'choose_lang': "🌐 زبان را انتخاب کنید:",
+        'lang_set': "✅ زبان فارسی انتخاب شد.",
+        'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه", "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
+    },
+    'en': {
+        'welcome': "👋 *Welcome to Crypto Analysis Bot!*\n\nLong 📈 & Short 📉 analysis based on:\n• Candlestick Patterns\n• Fibonacci Levels\n• RSI, MACD, Bollinger\n\nUse /analyze to start.",
+        'enter_symbol': "🪙 Enter the coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
+        'choose_tf': "Select timeframe:",
+        'analyzing': "⏳ Analyzing",
+        'error': "❌ Error:",
+        'cancel': "❌ Cancelled.",
+        'help': "/analyze - Start analysis\n/lang - Change language",
+        'choose_lang': "🌐 Choose your language:",
+        'lang_set': "✅ English selected.",
+        'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min", "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
+    },
+    'ru': {
+        'welcome': "👋 *Добро пожаловать в бот анализа крипто!*\n\nАнализ Long 📈 и Short 📉 на основе:\n• Паттерны свечей\n• Уровни Фибоначчи\n• RSI, MACD, Bollinger\n\nИспользуйте /analyze для начала.",
+        'enter_symbol': "🪙 Введите символ монеты:\nПример: `BTC`, `ETH`, `SOL`",
+        'choose_tf': "Выберите таймфрейм:",
+        'analyzing': "⏳ Анализирую",
+        'error': "❌ Ошибка:",
+        'cancel': "❌ Отменено.",
+        'help': "/analyze - Начать анализ\n/lang - Сменить язык",
+        'choose_lang': "🌐 Выберите язык:",
+        'lang_set': "✅ Русский выбран.",
+        'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин", "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
+    }
 }
 
 analyzer = CryptoAnalyzer()
+user_langs = {}
+
+
+def get_lang(user_id):
+    return user_langs.get(user_id, 'fa')
+
+
+def t(user_id, key):
+    return TEXTS[get_lang(user_id)][key]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 *سلام! به ربات تحلیل کریپتو خوش آمدید*\n\n"
-        "تحلیل لانگ 📈 و شورت 📉 بر اساس:\n"
-        "• الگوهای کندل‌استیک\n"
-        "• سطوح فیبوناچی\n"
-        "• RSI, MACD, Bollinger\n\n"
-        "دستور /analyze را بزنید.",
-        parse_mode="Markdown"
-    )
+    uid = update.effective_user.id
+    await update.message.reply_text(t(uid, 'welcome'), parse_mode="Markdown")
+
+
+async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    keyboard = [[
+        InlineKeyboardButton("🇮🇷 فارسی", callback_data="lang_fa"),
+        InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+        InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+    ]]
+    await update.message.reply_text(t(uid, 'choose_lang'), reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+    lang = query.data.split('_')[1]
+    user_langs[uid] = lang
+    await query.edit_message_text(TEXTS[lang]['lang_set'])
 
 
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
-        parse_mode="Markdown"
-    )
+    uid = update.effective_user.id
+    await update.message.reply_text(t(uid, 'enter_symbol'), parse_mode="Markdown")
     return WAITING_SYMBOL
 
 
 async def receive_symbol(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
     symbol = update.message.text.strip().upper()
     context.user_data['symbol'] = symbol
+    tfs = t(uid, 'timeframes')
     keyboard = [
-        [InlineKeyboardButton("1m", callback_data="1m"), InlineKeyboardButton("5m", callback_data="5m"), InlineKeyboardButton("15m", callback_data="15m")],
-        [InlineKeyboardButton("1h", callback_data="1h"), InlineKeyboardButton("4h", callback_data="4h")],
-        [InlineKeyboardButton("1d روزانه", callback_data="1d"), InlineKeyboardButton("1w هفتگی", callback_data="1w")],
+        [InlineKeyboardButton(tfs["1m"], callback_data="1m"), InlineKeyboardButton(tfs["5m"], callback_data="5m"), InlineKeyboardButton(tfs["15m"], callback_data="15m")],
+        [InlineKeyboardButton(tfs["1h"], callback_data="1h"), InlineKeyboardButton(tfs["4h"], callback_data="4h")],
+        [InlineKeyboardButton(tfs["1d"], callback_data="1d"), InlineKeyboardButton(tfs["1w"], callback_data="1w")],
     ]
     await update.message.reply_text(
-        f"✅ {symbol}USDT\n\nتایم‌فریم را انتخاب کنید:",
+        f"✅ {symbol}USDT\n\n{t(uid, 'choose_tf')}",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return WAITING_TIMEFRAME
@@ -61,25 +113,29 @@ async def receive_symbol(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    uid = query.from_user.id
     timeframe = query.data
     symbol = context.user_data.get('symbol', 'BTC')
-    await query.edit_message_text(f"⏳ در حال تحلیل {symbol}USDT - {TIMEFRAMES.get(timeframe)} ...")
+    tfs = t(uid, 'timeframes')
+    await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT - {tfs.get(timeframe)} ...")
     try:
         result = analyzer.analyze(symbol, timeframe)
         await query.message.reply_text(result, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"Error: {e}")
-        await query.message.reply_text(f"❌ خطا: {str(e)}")
+        await query.message.reply_text(f"{t(uid, 'error')} {str(e)}")
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ لغو شد.")
+    uid = update.effective_user.id
+    await update.message.reply_text(t(uid, 'cancel'))
     return ConversationHandler.END
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("/analyze - شروع تحلیل\n/help - راهنما")
+    uid = update.effective_user.id
+    await update.message.reply_text(t(uid, 'help'))
 
 
 def main():
@@ -93,13 +149,15 @@ def main():
         entry_points=[CommandHandler("analyze", analyze_command)],
         states={
             WAITING_SYMBOL: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_symbol)],
-            WAITING_TIMEFRAME: [CallbackQueryHandler(receive_timeframe)],
+            WAITING_TIMEFRAME: [CallbackQueryHandler(receive_timeframe, pattern="^(1m|5m|15m|1h|4h|1d|1w)$")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("lang", lang_command))
+    app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
     app.add_handler(conv)
 
     logger.info("Bot is running...")
