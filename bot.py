@@ -1,3 +1,6 @@
+import os
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
@@ -10,7 +13,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# States
 WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 
 TIMEFRAMES = {
@@ -30,11 +32,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 *سلام! به ربات تحلیل کریپتو خوش آمدید*\n\n"
         "🔍 این ربات بر اساس:\n"
-        "• الگوهای کندل‌استیک (Candlestick Patterns)\n"
-        "• سطوح فیبوناچی (Fibonacci Levels)\n"
+        "• الگوهای کندل‌استیک\n"
+        "• سطوح فیبوناچی\n"
         "• اندیکاتورهای تکنیکال (RSI, MACD, Bollinger)\n\n"
         "تحلیل لانگ 📈 و شورت 📉 ارائه می‌دهد.\n\n"
-        "برای شروع تحلیل دستور /analyze را بزنید.",
+        "برای شروع دستور /analyze را بزنید.",
         parse_mode="Markdown"
     )
 
@@ -42,8 +44,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🪙 *نام ارز دیجیتال را وارد کنید:*\n\n"
-        "مثال‌ها: `BTC`, `ETH`, `SOL`, `BNB`, `XRP`\n\n"
-        "⚠️ فقط نماد ارز را بدون USDT وارد کنید.",
+        "مثال: `BTC`, `ETH`, `SOL`, `BNB`",
         parse_mode="Markdown"
     )
     return WAITING_SYMBOL
@@ -71,7 +72,7 @@ async def receive_symbol(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"✅ ارز انتخابی: *{symbol}USDT*\n\n⏱ *تایم‌فریم مورد نظر را انتخاب کنید:*",
+        f"✅ ارز: *{symbol}USDT*\n\n⏱ *تایم‌فریم را انتخاب کنید:*",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -87,8 +88,7 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tf_name = TIMEFRAMES.get(timeframe, timeframe)
 
     await query.edit_message_text(
-        f"⏳ در حال تحلیل *{symbol}USDT* در تایم‌فریم *{tf_name}* ...\n\n"
-        "لطفاً چند ثانیه صبر کنید 🔄",
+        f"⏳ در حال تحلیل *{symbol}USDT* - {tf_name} ...",
         parse_mode="Markdown"
     )
 
@@ -98,56 +98,23 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Analysis error: {e}")
         await query.message.reply_text(
-            f"❌ خطا در تحلیل: {str(e)}\n\n"
-            "لطفاً نماد ارز را بررسی کرده و دوباره امتحان کنید.",
-            parse_mode="Markdown"
+            f"❌ خطا: {str(e)}\n\nنماد ارز را بررسی کنید.",
         )
 
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ عملیات لغو شد.")
+    await update.message.reply_text("❌ لغو شد.")
     return ConversationHandler.END
-
-
-async def quick_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle quick analysis like /btc or /eth"""
-    text = update.message.text.lstrip('/').upper()
-    parts = text.split()
-    symbol = parts[0]
-    timeframe = parts[1] if len(parts) > 1 else "1h"
-
-    if timeframe not in TIMEFRAMES:
-        timeframe = "1h"
-
-    await update.message.reply_text(
-        f"⏳ در حال تحلیل *{symbol}USDT* در تایم‌فریم *{TIMEFRAMES[timeframe]}* ...",
-        parse_mode="Markdown"
-    )
-
-    try:
-        result = analyzer.analyze(symbol, timeframe)
-        await update.message.reply_text(result, parse_mode="Markdown")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطا: {str(e)}")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📖 *راهنمای استفاده:*\n\n"
-        "🔹 `/analyze` - شروع تحلیل تعاملی\n"
-        "🔹 `/btc 1h` - تحلیل سریع بیتکوین در 1 ساعته\n"
-        "🔹 `/eth 4h` - تحلیل سریع اتریوم در 4 ساعته\n\n"
-        "⏱ *تایم‌فریم‌های موجود:*\n"
-        "`1m` `5m` `15m` `1h` `4h` `1d` `1w`\n\n"
-        "📊 *اندیکاتورهای استفاده شده:*\n"
-        "• الگوهای کندل‌استیک\n"
-        "• سطوح فیبوناچی\n"
-        "• RSI\n"
-        "• MACD\n"
-        "• باند بولینگر\n"
-        "• میانگین متحرک (EMA 20/50/200)",
+        "📖 *راهنما:*\n\n"
+        "/analyze - شروع تحلیل\n"
+        "/help - راهنما\n\n"
+        "تایم‌فریم‌ها: 1m 5m 15m 1h 4h 1d 1w",
         parse_mode="Markdown"
     )
 
@@ -155,7 +122,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
-        raise ValueError("TELEGRAM_BOT_TOKEN environment variable not set!")
+        raise ValueError("TELEGRAM_BOT_TOKEN not set!")
 
     app = Application.builder().token(token).build()
 
@@ -171,12 +138,6 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(conv_handler)
-
-    # Quick commands pattern: /BTC, /ETH, etc.
-    app.add_handler(MessageHandler(
-        filters.Regex(r'^/[A-Za-z]{2,10}(\s+(1m|5m|15m|1h|4h|1d|1w))?$'),
-        quick_analyze
-    ))
 
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
