@@ -6,47 +6,51 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 from analyzer import CryptoAnalyzer
+from terms import TERMS, TERM_ALIASES, ALL_TERMS_FA, ALL_TERMS_EN, ALL_TERMS_RU
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CHOOSING_LANG, WAITING_SYMBOL, WAITING_TIMEFRAME = range(3)
+WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 
 TEXTS = {
     'fa': {
-        'welcome': "👋 *سلام! به ربات تحلیل کریپتو خوش آمدید*\n\nتحلیل لانگ 📈 و شورت 📉 بر اساس:\n• الگوهای کندل‌استیک\n• سطوح فیبوناچی\n• RSI, MACD, Bollinger\n\nدستور /analyze را بزنید.",
+        'welcome': "👋 *سلام! به ربات تحلیل کریپتو خوش آمدید*\n\nتحلیل لانگ 📈 و شورت 📉 بر اساس:\n• الگوهای کندل‌استیک\n• سطوح فیبوناچی\n• RSI, MACD, Bollinger\n\n/analyze - شروع تحلیل\n/terms - اصطلاحات ترید\n/lang - تغییر زبان",
         'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
         'choose_tf': "تایم‌فریم را انتخاب کنید:",
         'analyzing': "⏳ در حال تحلیل",
         'error': "❌ خطا:",
         'cancel': "❌ لغو شد.",
-        'help': "/analyze - شروع تحلیل\n/lang - تغییر زبان",
+        'help': "/analyze - شروع تحلیل\n/terms - اصطلاحات ترید\n/lang - تغییر زبان",
         'choose_lang': "🌐 زبان را انتخاب کنید:",
         'lang_set': "✅ زبان فارسی انتخاب شد.",
+        'term_not_found': "❓ اصطلاح پیدا نشد.\n\n/terms را بزنید تا لیست کامل ببینید.",
         'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه", "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
     },
     'en': {
-        'welcome': "👋 *Welcome to Crypto Analysis Bot!*\n\nLong 📈 & Short 📉 analysis based on:\n• Candlestick Patterns\n• Fibonacci Levels\n• RSI, MACD, Bollinger\n\nUse /analyze to start.",
-        'enter_symbol': "🪙 Enter the coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
+        'welcome': "👋 *Welcome to Crypto Analysis Bot!*\n\nLong 📈 & Short 📉 analysis based on:\n• Candlestick Patterns\n• Fibonacci Levels\n• RSI, MACD, Bollinger\n\n/analyze - Start analysis\n/terms - Trading terms\n/lang - Change language",
+        'enter_symbol': "🪙 Enter coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Select timeframe:",
         'analyzing': "⏳ Analyzing",
         'error': "❌ Error:",
         'cancel': "❌ Cancelled.",
-        'help': "/analyze - Start analysis\n/lang - Change language",
+        'help': "/analyze - Start analysis\n/terms - Trading terms\n/lang - Change language",
         'choose_lang': "🌐 Choose your language:",
         'lang_set': "✅ English selected.",
+        'term_not_found': "❓ Term not found.\n\nUse /terms to see the full list.",
         'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min", "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
     },
     'ru': {
-        'welcome': "👋 *Добро пожаловать в бот анализа крипто!*\n\nАнализ Long 📈 и Short 📉 на основе:\n• Паттерны свечей\n• Уровни Фибоначчи\n• RSI, MACD, Bollinger\n\nИспользуйте /analyze для начала.",
+        'welcome': "👋 *Добро пожаловать в бот анализа крипто!*\n\nАнализ Long 📈 и Short 📉 на основе:\n• Паттерны свечей\n• Уровни Фибоначчи\n• RSI, MACD, Bollinger\n\n/analyze - Начать анализ\n/terms - Термины трейдинга\n/lang - Сменить язык",
         'enter_symbol': "🪙 Введите символ монеты:\nПример: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Выберите таймфрейм:",
         'analyzing': "⏳ Анализирую",
         'error': "❌ Ошибка:",
         'cancel': "❌ Отменено.",
-        'help': "/analyze - Начать анализ\n/lang - Сменить язык",
+        'help': "/analyze - Начать анализ\n/terms - Термины трейдинга\n/lang - Сменить язык",
         'choose_lang': "🌐 Выберите язык:",
         'lang_set': "✅ Русский выбран.",
+        'term_not_found': "❓ Термин не найден.\n\nИспользуйте /terms для полного списка.",
         'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин", "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
     }
 }
@@ -55,17 +59,18 @@ analyzer = CryptoAnalyzer()
 user_langs = {}
 
 
-def get_lang(user_id):
-    return user_langs.get(user_id, 'fa')
-
-
-def t(user_id, key):
-    return TEXTS[get_lang(user_id)][key]
+def get_lang(uid): return user_langs.get(uid, 'fa')
+def t(uid, key): return TEXTS[get_lang(uid)][key]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     await update.message.reply_text(t(uid, 'welcome'), parse_mode="Markdown")
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    await update.message.reply_text(t(uid, 'help'))
 
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,6 +90,37 @@ async def set_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = query.data.split('_')[1]
     user_langs[uid] = lang
     await query.edit_message_text(TEXTS[lang]['lang_set'])
+
+
+async def terms_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    lang = get_lang(uid)
+    if lang == 'fa':
+        msg = ALL_TERMS_FA
+    elif lang == 'en':
+        msg = ALL_TERMS_EN
+    else:
+        msg = ALL_TERMS_RU
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    lang = get_lang(uid)
+    text = update.message.text.strip().lower()
+
+    term_key = TERM_ALIASES.get(text)
+    if not term_key:
+        term_key = TERM_ALIASES.get(text.upper())
+    if not term_key and text.upper() in TERMS.get(lang, {}):
+        term_key = text.upper()
+
+    if term_key and term_key in TERMS.get(lang, TERMS['en']):
+        lang_terms = TERMS.get(lang, TERMS['en'])
+        explanation = lang_terms.get(term_key) or TERMS['en'].get(term_key, t(uid, 'term_not_found'))
+        await update.message.reply_text(explanation, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(t(uid, 'term_not_found'))
 
 
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,11 +169,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    await update.message.reply_text(t(uid, 'help'))
-
-
 def main():
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -157,8 +188,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("lang", lang_command))
+    app.add_handler(CommandHandler("terms", terms_command))
     app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
     app.add_handler(conv)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
