@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 (J_SYMBOL, J_DIRECTION, J_ENTRY, J_SL, J_TP, J_SIZE, J_NOTE,
- J_CLOSE_ID, J_CLOSE_EXIT, J_CLOSE_PNL) = range(10, 20)
+ J_CLOSE_ID, J_CLOSE_EXIT, J_CLOSE_PNL, J_DELETE_ID) = range(10, 21)
 
 TEXTS = {
     'fa': {
@@ -150,11 +150,9 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(result, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"Watchlist error: {e}")
-        await msg.edit_text(f"❌ خطا در دریافت واچلیست: {str(e)}")
-
+        await msg.edit_text(f"❌ خطا: {str(e)}")
 
 async def send_weekly_watchlist(context):
-    """Auto-send watchlist every Monday"""
     try:
         result = generate_watchlist()
         for uid in subscribed_users:
@@ -171,12 +169,12 @@ async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stats = get_stats(uid)
     keyboard = [
-    [InlineKeyboardButton("➕ ثبت معامله", callback_data="j_new"),
-     InlineKeyboardButton("📋 لیست", callback_data="j_list")],
-    [InlineKeyboardButton("✅ بستن معامله", callback_data="j_close"),
-     InlineKeyboardButton("📊 آمار", callback_data="j_stats")],
-    [InlineKeyboardButton("🗑 حذف معامله", callback_data="j_delete"),
-     InlineKeyboardButton("📥 اکسپورت اکسل", callback_data="j_export")],
+        [InlineKeyboardButton("➕ ثبت معامله", callback_data="j_new"),
+         InlineKeyboardButton("📋 لیست", callback_data="j_list")],
+        [InlineKeyboardButton("✅ بستن معامله", callback_data="j_close"),
+         InlineKeyboardButton("📊 آمار", callback_data="j_stats")],
+        [InlineKeyboardButton("🗑 حذف معامله", callback_data="j_delete"),
+         InlineKeyboardButton("📥 اکسپورت اکسل", callback_data="j_export")],
     ]
     text = "📒 *ژورنال معاملات*\n\n"
     if stats:
@@ -191,9 +189,11 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     uid = query.from_user.id
     data = query.data
+
     if data == "j_new":
         await query.message.reply_text("🪙 نماد ارز:\nمثال: `BTC`", parse_mode="Markdown")
         return J_SYMBOL
+
     elif data == "j_list":
         trades = get_trades(uid)
         if not trades:
@@ -207,6 +207,7 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pnl_text = f" | P&L: {pnl}$" if pnl is not None else ""
             text += f"{emoji} #{trade['id']} {trade.get('symbol')} {trade.get('direction')} @ {trade.get('entry')}{pnl_text}\n"
         await query.message.reply_text(text, parse_mode="Markdown")
+
     elif data == "j_stats":
         stats = get_stats(uid)
         if not stats:
@@ -214,10 +215,26 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         text = f"📊 *آمار:*\n\n• کل: {stats['total']}\n• بسته: {stats['closed']}\n• ✅ برنده: {stats['win']}\n• ❌ بازنده: {stats['loss']}\n• 🎯 وین ریت: {stats['winrate']}%\n• 💰 P&L کل: {stats['total_pnl']}$"
         await query.message.reply_text(text, parse_mode="Markdown")
+
     elif data == "j_export":
         lang = get_lang(uid)
         buf = export_to_excel(uid, lang)
         await query.message.reply_document(document=buf, filename=f"journal_{datetime.utcnow().strftime('%Y%m%d')}.xlsx", caption="📥 فایل اکسل ژورنال")
+
+    elif data == "j_delete":
+        trades = get_trades(uid)
+        if not trades:
+            await query.message.reply_text("هیچ معامله‌ای وجود ندارد.")
+            return
+        text = "🗑 *کدام معامله را حذف کنید؟*\n\n"
+        for trade in trades[-10:]:
+            pnl = trade.get('pnl')
+            pnl_text = f" | P&L: {pnl}$" if pnl is not None else ""
+            text += f"#{trade['id']} {trade.get('symbol')} {trade.get('direction')} @ {trade.get('entry')}{pnl_text}\n"
+        text += "\nشماره معامله را وارد کنید:"
+        await query.message.reply_text(text, parse_mode="Markdown")
+        return J_DELETE_ID
+
     elif data == "j_close":
         trades = get_trades(uid)
         open_trades = [t for t in trades if t.get('status') == 'open']
@@ -231,6 +248,7 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return J_CLOSE_ID
 
 
+# ── Journal conversation handlers ──
 async def j_symbol(update, context):
     context.user_data['j_symbol'] = update.message.text.strip().upper()
     keyboard = [[InlineKeyboardButton("📈 LONG", callback_data="jd_long"), InlineKeyboardButton("📉 SHORT", callback_data="jd_short")]]
@@ -277,7 +295,28 @@ async def j_note(update, context):
         'note': note, 'status': 'open', 'exit_price': None, 'pnl': None,
     }
     trade_id = add_trade(uid, trade)
-    await update.message.reply_text(f"✅ *معامله #{trade_id} ثبت شد!*\n\n• {trade['symbol']} {trade['direction']}\n• ورود: {trade['entry']}\n• SL: {trade['sl']} | TP: {trade['tp']}", parse_mode="Markdown")
+    await update.message.reply_text(
+        f"✅ *معامله #{trade_id} ثبت شد!*\n\n"
+        f"• {trade['symbol']} {trade['direction']}\n"
+        f"• ورود: {trade['entry']}\n"
+        f"• SL: {trade['sl']} | TP: {trade['tp']}",
+        parse_mode="Markdown"
+    )
+    return ConversationHandler.END
+
+async def j_delete_id(update, context):
+    uid = update.effective_user.id
+    try:
+        trade_id = int(update.message.text.strip())
+        trades = get_trades(uid)
+        trade_ids = [t['id'] for t in trades]
+        if trade_id not in trade_ids:
+            await update.message.reply_text(f"❌ معامله #{trade_id} پیدا نشد.")
+            return ConversationHandler.END
+        delete_trade(uid, trade_id)
+        await update.message.reply_text(f"✅ معامله #{trade_id} حذف شد.")
+    except:
+        await update.message.reply_text("❌ شماره نامعتبر.")
     return ConversationHandler.END
 
 async def j_close_id(update, context):
@@ -314,7 +353,7 @@ async def j_close_pnl(update, context):
     return ConversationHandler.END
 
 
-# ── Main handlers ──
+# ── Analyze handlers ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     subscribed_users.add(uid)
@@ -401,6 +440,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+# ── Main ──
 def main():
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -408,12 +448,10 @@ def main():
 
     app = ApplicationBuilder().token(token).build()
 
-    # Weekly watchlist job — every Monday at 08:00 UTC
-    job_queue = app.job_queue
-    job_queue.run_daily(
+    app.job_queue.run_daily(
         send_weekly_watchlist,
         time=dtime(8, 0, 0),
-        days=(0,),  # 0 = Monday
+        days=(0,),
         name="weekly_watchlist"
     )
 
@@ -436,6 +474,7 @@ def main():
             J_TP: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_tp)],
             J_SIZE: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_size)],
             J_NOTE: [MessageHandler(filters.TEXT, j_note)],
+            J_DELETE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_delete_id)],
             J_CLOSE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_close_id)],
             J_CLOSE_EXIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_close_exit)],
             J_CLOSE_PNL: [MessageHandler(filters.TEXT & ~filters.COMMAND, j_close_pnl)],
@@ -458,4 +497,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
