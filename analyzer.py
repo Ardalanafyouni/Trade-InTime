@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class CryptoAnalyzer:
     def __init__(self):
-        self.exchange = ccxt.tradingview({
+        self.exchange = ccxt.kucoin({
             'enableRateLimit': True,
         })
 
