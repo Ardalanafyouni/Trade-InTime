@@ -171,11 +171,12 @@ async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     stats = get_stats(uid)
     keyboard = [
-        [InlineKeyboardButton("➕ ثبت معامله", callback_data="j_new"),
-         InlineKeyboardButton("📋 لیست", callback_data="j_list")],
-        [InlineKeyboardButton("✅ بستن معامله", callback_data="j_close"),
-         InlineKeyboardButton("📊 آمار", callback_data="j_stats")],
-        [InlineKeyboardButton("📥 اکسپورت اکسل", callback_data="j_export")],
+    [InlineKeyboardButton("➕ ثبت معامله", callback_data="j_new"),
+     InlineKeyboardButton("📋 لیست", callback_data="j_list")],
+    [InlineKeyboardButton("✅ بستن معامله", callback_data="j_close"),
+     InlineKeyboardButton("📊 آمار", callback_data="j_stats")],
+    [InlineKeyboardButton("🗑 حذف معامله", callback_data="j_delete"),
+     InlineKeyboardButton("📥 اکسپورت اکسل", callback_data="j_export")],
     ]
     text = "📒 *ژورنال معاملات*\n\n"
     if stats:
