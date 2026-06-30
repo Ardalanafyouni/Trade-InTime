@@ -15,7 +15,7 @@ from chart_generator import generate_chart
 from terms import TERMS, TERM_ALIASES, ALL_TERMS_FA, ALL_TERMS_EN, ALL_TERMS_RU
 from journal import add_trade, get_trades, delete_trade, get_stats, load_journals, save_journals
 from watchlist import generate_watchlist
-from news import generate_news_message
+from news import generate_news_message, get_fresh_breaking_news, fetch_news
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -74,6 +74,7 @@ analyzer = CryptoAnalyzer()
 user_langs = {}
 subscribed_users = set()
 news_subscribers = set()
+seen_news_links = set()
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
 def t(uid, key): return TEXTS[get_lang(uid)][key]
@@ -169,12 +170,17 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
+    first_time = uid not in news_subscribers
     news_subscribers.add(uid)
     lang = get_lang(uid)
     loading_text = {"fa": "⏳ در حال دریافت اخبار...", "en": "⏳ Fetching news...", "ru": "⏳ Получаю новости..."}
     msg = await update.message.reply_text(loading_text.get(lang, loading_text['en']))
     try:
         result = generate_news_message(lang)
+        if first_time:
+            items = fetch_news('en', limit=15)
+            for item in items:
+                seen_news_links.add(item['link'])
         await msg.delete()
         await update.message.reply_text(result, parse_mode="Markdown", disable_web_page_preview=True)
     except Exception as e:
@@ -190,6 +196,36 @@ async def send_hourly_news(context):
             await context.bot.send_message(chat_id=uid, text=result, parse_mode="Markdown", disable_web_page_preview=True)
         except:
             pass
+
+
+async def check_breaking_news(context):
+    """Runs every 5 minutes to check for breaking news and alert instantly"""
+    global seen_news_links
+    if not news_subscribers:
+        return
+    try:
+        fresh_items_en = get_fresh_breaking_news('en', seen_news_links)
+        if not fresh_items_en:
+            return
+
+        for uid in news_subscribers:
+            lang = get_lang(uid)
+            fresh_items = get_fresh_breaking_news(lang, seen_news_links)
+            for item in fresh_items[:3]:
+                try:
+                    alert_label = {"fa": "🚨 خبر فوری", "en": "🚨 BREAKING NEWS", "ru": "🚨 СРОЧНЫЕ НОВОСТИ"}
+                    text = f"{alert_label.get(lang, alert_label['en'])}\n\n*{item['title']}*\n\n📡 {item['source']}\n🔗 {item['link']}"
+                    await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown", disable_web_page_preview=True)
+                except:
+                    pass
+
+        for item in fresh_items_en:
+            seen_news_links.add(item['link'])
+
+        if len(seen_news_links) > 200:
+            seen_news_links = set(list(seen_news_links)[-100:])
+    except Exception as e:
+        logger.error(f"Breaking news check error: {e}")
 
 
 async def watchlist_quick_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -513,9 +549,16 @@ def main():
 
     app.job_queue.run_repeating(
         send_hourly_news,
-        interval=3600,
+        interval=900,
         first=60,
-        name="hourly_news"
+        name="news_update"
+    )
+
+    app.job_queue.run_repeating(
+        check_breaking_news,
+        interval=300,
+        first=90,
+        name="breaking_news_check"
     )
 
     analyze_conv = ConversationHandler(
