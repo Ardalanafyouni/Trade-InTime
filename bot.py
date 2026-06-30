@@ -15,6 +15,7 @@ from chart_generator import generate_chart
 from terms import TERMS, TERM_ALIASES, ALL_TERMS_FA, ALL_TERMS_EN, ALL_TERMS_RU
 from journal import add_trade, get_trades, delete_trade, get_stats, load_journals, save_journals
 from watchlist import generate_watchlist
+from news import generate_news_message
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -29,7 +30,7 @@ WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 
 TEXTS = {
     'fa': {
-        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/terms - اصطلاحات\n/lang - زبان",
+        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/terms - اصطلاحات\n/lang - زبان",
         'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
         'choose_tf': "تایم‌فریم را انتخاب کنید:",
         'analyzing': "⏳ در حال تحلیل و رسم چارت",
@@ -42,7 +43,7 @@ TEXTS = {
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
     },
     'en': {
-        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/terms - Terms\n/lang - Language",
+        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/terms - Terms\n/lang - Language",
         'enter_symbol': "🪙 Enter coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Select timeframe:",
         'analyzing': "⏳ Analyzing and generating chart",
@@ -55,7 +56,7 @@ TEXTS = {
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
     },
     'ru': {
-        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/terms - Термины\n/lang - Язык",
+        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/terms - Термины\n/lang - Язык",
         'enter_symbol': "🪙 Введите символ:\nПример: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Выберите таймфрейм:",
         'analyzing': "⏳ Анализирую и строю график",
@@ -72,6 +73,7 @@ TEXTS = {
 analyzer = CryptoAnalyzer()
 user_langs = {}
 subscribed_users = set()
+news_subscribers = set()
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
 def t(uid, key): return TEXTS[get_lang(uid)][key]
@@ -163,6 +165,31 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Watchlist error: {e}")
         await msg.edit_text(f"❌ خطا: {str(e)}")
+
+
+async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    news_subscribers.add(uid)
+    lang = get_lang(uid)
+    loading_text = {"fa": "⏳ در حال دریافت اخبار...", "en": "⏳ Fetching news...", "ru": "⏳ Получаю новости..."}
+    msg = await update.message.reply_text(loading_text.get(lang, loading_text['en']))
+    try:
+        result = generate_news_message(lang)
+        await msg.delete()
+        await update.message.reply_text(result, parse_mode="Markdown", disable_web_page_preview=True)
+    except Exception as e:
+        logger.error(f"News error: {e}")
+        await msg.edit_text(f"❌ {str(e)}")
+
+
+async def send_hourly_news(context):
+    for uid in news_subscribers:
+        try:
+            lang = get_lang(uid)
+            result = generate_news_message(lang)
+            await context.bot.send_message(chat_id=uid, text=result, parse_mode="Markdown", disable_web_page_preview=True)
+        except:
+            pass
 
 
 async def watchlist_quick_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -484,6 +511,13 @@ def main():
         name="weekly_watchlist"
     )
 
+    app.job_queue.run_repeating(
+        send_hourly_news,
+        interval=3600,
+        first=60,
+        name="hourly_news"
+    )
+
     analyze_conv = ConversationHandler(
         entry_points=[
             CommandHandler("analyze", analyze_command),
@@ -520,6 +554,7 @@ def main():
     app.add_handler(CommandHandler("terms", terms_command))
     app.add_handler(CommandHandler("journal", journal_command))
     app.add_handler(CommandHandler("watchlist", watchlist_command))
+    app.add_handler(CommandHandler("news", news_command))
     app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
     app.add_handler(analyze_conv)
     app.add_handler(journal_conv)
