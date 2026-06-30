@@ -28,6 +28,20 @@ def translate_text(text, target_lang='fa'):
         logger.error(f"Translation error: {e}")
         return text
 
+
+BREAKING_KEYWORDS = [
+    'breaking', 'urgent', 'just in', 'alert', 'crash', 'plunge', 'surge',
+    'hack', 'hacked', 'exploit', 'rug pull', 'sec sues', 'sec charges',
+    'banned', 'ban crypto', 'halts', 'suspended', 'collapse', 'bankrupt',
+    'liquidat', 'all-time high', 'ath', 'record high', 'flash crash',
+    'emergency', 'regulatory action', 'lawsuit', 'investigation',
+]
+
+
+def is_breaking_news(title):
+    title_lower = title.lower()
+    return any(kw in title_lower for kw in BREAKING_KEYWORDS)
+
 RSS_FEEDS = {
     'fa': [
         ('CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/'),
@@ -62,6 +76,7 @@ def fetch_news(lang='fa', limit=8):
                 published = entry.get('published_parsed')
                 pub_date = datetime(*published[:6]) if published else datetime.utcnow()
                 title = entry.get('title', '')
+                is_breaking = is_breaking_news(title)
                 translated_title = translate_text(title, lang) if lang != 'en' else title
                 all_items.append({
                     'title': translated_title,
@@ -69,6 +84,7 @@ def fetch_news(lang='fa', limit=8):
                     'link': entry.get('link', ''),
                     'source': source_name,
                     'published': pub_date,
+                    'is_breaking': is_breaking,
                 })
         except Exception as e:
             logger.error(f"RSS fetch error for {source_name}: {e}")
@@ -76,6 +92,15 @@ def fetch_news(lang='fa', limit=8):
 
     all_items.sort(key=lambda x: x['published'], reverse=True)
     return all_items[:limit]
+
+
+def get_fresh_breaking_news(lang='fa', seen_links=None):
+    """Get breaking news items not yet seen, for instant alerts"""
+    if seen_links is None:
+        seen_links = set()
+    items = fetch_news(lang, limit=15)
+    fresh_breaking = [item for item in items if item.get('is_breaking') and item['link'] not in seen_links]
+    return fresh_breaking
 
 
 def generate_news_message(lang='fa'):
@@ -96,9 +121,16 @@ def generate_news_message(lang='fa'):
         for i, item in enumerate(news_items, 1):
             time_ago = now - item['published']
             hours = int(time_ago.total_seconds() // 3600)
-            time_text = f"{hours}h ago" if hours > 0 else "just now"
+            minutes = int(time_ago.total_seconds() // 60)
+            if hours > 0:
+                time_text = f"{hours}h ago"
+            elif minutes > 0:
+                time_text = f"{minutes}m ago"
+            else:
+                time_text = "just now"
 
-            lines.append(f"*{i}.* {item['title']}")
+            prefix = "🚨 " if item.get('is_breaking') else ""
+            lines.append(f"{prefix}*{i}.* {item['title']}")
             lines.append(f"   📡 {item['source']} • ⏱ {time_text}")
             lines.append(f"   🔗 {item['link']}")
             lines.append("")
@@ -110,3 +142,4 @@ def generate_news_message(lang='fa'):
     ]
 
     return "\n".join(lines)
+
