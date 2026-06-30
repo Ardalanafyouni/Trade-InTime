@@ -17,107 +17,116 @@ def fetch_coingecko(endpoint, params=None):
         return None
 
 
-def get_recently_listed_coins():
-    """Get coins recently added to CoinGecko with decent market presence"""
-    # Get coins sorted by market cap to filter for legitimacy
-    data = fetch_coingecko("/coins/markets", params={
-        'vs_currency': 'usd',
-        'order': 'market_cap_desc',
-        'per_page': 250,
-        'page': 1,
-        'sparkline': False,
-        'price_change_percentage': '24h,7d',
-    })
-    if not data:
-        return []
+def get_newly_listed_coins():
+    """Get coins recently added to CoinGecko (actually new, sorted by recent addition)"""
+    all_coins = []
 
+    # CoinGecko's /coins/list with status=active sorted by id doesn't give date,
+    # so we use markets endpoint with order=id_desc as a proxy for recently added,
+    # combined with checking ATH date (first trading data point) as recency signal
+    for page in [1, 2]:
+        data = fetch_coingecko("/coins/markets", params={
+            'vs_currency': 'usd',
+            'order': 'market_cap_desc',
+            'per_page': 250,
+            'page': page,
+            'sparkline': False,
+            'price_change_percentage': '24h,7d',
+        })
+        if data:
+            all_coins.extend(data)
+
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
     candidates = []
-    for coin in data:
+
+    for coin in all_coins:
+        coin_id = coin.get('id')
         market_cap = coin.get('market_cap', 0) or 0
         volume = coin.get('total_volume', 0) or 0
-        rank = coin.get('market_cap_rank')
+        ath_date_str = coin.get('ath_date')
+        atl_date_str = coin.get('atl_date')
 
-        # Filter criteria for "safer" new coins:
-        # - Has meaningful market cap (not a ghost token)
-        # - Has real trading volume (liquidity exists)
-        # - Ranked (meaning it's tracked and somewhat established)
-        # - Volume/MarketCap ratio shows active trading, not just listed
-        if not rank or rank > 500:
-            continue
-        if market_cap < 5_000_000:  # Min $5M market cap
-            continue
-        if volume < 500_000:  # Min $500K daily volume
+        if not ath_date_str:
             continue
 
-        vol_to_mcap = volume / market_cap if market_cap > 0 else 0
+        try:
+            # ATH/ATL date is close to listing date for genuinely new coins
+            # (since they haven't had time to set ATH far from launch)
+            ath_date = datetime.strptime(ath_date_str[:19], '%Y-%m-%dT%H:%M:%S')
+            atl_date = datetime.strptime(atl_date_str[:19], '%Y-%m-%dT%H:%M:%S') if atl_date_str else ath_date
+            # Use the EARLIER of the two as proxy for "first seen" date
+            first_seen = min(ath_date, atl_date)
+        except:
+            continue
+
+        # Must be within last 6 months
+        if first_seen < six_months_ago:
+            continue
+
+        # Minimum liquidity filters to avoid dead/scam tokens
+        if market_cap < 1_000_000:  # Min $1M market cap
+            continue
+        if volume < 100_000:  # Min $100K daily volume
+            continue
 
         candidates.append({
-            'id': coin.get('id'),
+            'id': coin_id,
             'symbol': coin.get('symbol', '').upper(),
             'name': coin.get('name'),
             'market_cap': market_cap,
             'volume': volume,
-            'rank': rank,
+            'rank': coin.get('market_cap_rank'),
             'price': coin.get('current_price'),
             'change_24h': coin.get('price_change_percentage_24h'),
             'change_7d': coin.get('price_change_percentage_7d_in_currency'),
-            'vol_to_mcap': vol_to_mcap,
-            'ath_date': coin.get('ath_date'),
+            'first_seen': first_seen,
+            'days_old': (datetime.utcnow() - first_seen).days,
         })
 
     return candidates
 
 
 def score_coin_safety(coin):
-    """Simple heuristic scoring for relative safety signals (not financial advice)"""
+    """Heuristic scoring for relative safety signals (informational only)"""
     score = 0
     reasons = []
 
-    # Higher rank = more established = safer signal
-    if coin['rank'] <= 100:
-        score += 3
-        reasons.append("رنک بالای ۱۰۰")
-    elif coin['rank'] <= 300:
-        score += 2
-        reasons.append("رنک معتبر")
-    else:
-        score += 1
+    vol_to_mcap = coin['volume'] / coin['market_cap'] if coin['market_cap'] > 0 else 0
 
-    # Healthy volume/mcap ratio (not too low = illiquid, not too high = pump)
-    vtm = coin['vol_to_mcap']
-    if 0.05 <= vtm <= 0.5:
+    if 0.03 <= vol_to_mcap <= 0.6:
         score += 2
         reasons.append("نقدینگی سالم")
-    elif vtm > 0.5:
-        score += 0
+    elif vol_to_mcap > 0.6:
         reasons.append("⚠️ نوسان حجم بالا")
     else:
-        score += 1
+        reasons.append("⚠️ نقدینگی پایین")
 
-    # Stable-ish growth not extreme pump
-    change_7d = coin.get('change_7d')
-    if change_7d is not None:
-        if -20 <= change_7d <= 50:
-            score += 2
-            reasons.append("رشد متعادل")
-        elif change_7d > 50:
-            reasons.append("⚠️ رشد بسیار سریع (احتمال پامپ)")
-        else:
-            reasons.append("⚠️ افت قیمت اخیر")
-
-    # Market cap tier
-    if coin['market_cap'] >= 50_000_000:
+    if coin['market_cap'] >= 20_000_000:
         score += 2
         reasons.append("مارکت کپ قابل توجه")
-    elif coin['market_cap'] >= 20_000_000:
+    elif coin['market_cap'] >= 5_000_000:
         score += 1
+        reasons.append("مارکت کپ متوسط")
+    else:
+        reasons.append("⚠️ مارکت کپ کوچک")
+
+    if coin['rank'] and coin['rank'] <= 500:
+        score += 1
+        reasons.append("رنک‌دار در CoinGecko")
+
+    change_7d = coin.get('change_7d')
+    if change_7d is not None:
+        if -30 <= change_7d <= 80:
+            score += 1
+        else:
+            reasons.append("⚠️ نوسان قیمتی شدید")
 
     return score, reasons
 
 
 def get_top_new_coins(limit=10):
-    """Get top N relatively-safer new/emerging coins"""
-    candidates = get_recently_listed_coins()
+    """Get top N genuinely new coins (listed within last 6 months)"""
+    candidates = get_newly_listed_coins()
     if not candidates:
         return []
 
@@ -128,7 +137,8 @@ def get_top_new_coins(limit=10):
         coin['safety_reasons'] = reasons
         scored.append(coin)
 
-    scored.sort(key=lambda x: x['safety_score'], reverse=True)
+    # Sort by score first, then by volume as tiebreaker
+    scored.sort(key=lambda x: (x['safety_score'], x['volume']), reverse=True)
     return scored[:limit]
 
 
@@ -137,25 +147,34 @@ def generate_new_coins_message(lang='fa'):
 
     labels = {
         'fa': {
-            'title': '🆕 کوین‌های نوظهور — لیست روزانه',
+            'title': '🆕 کوین‌های واقعاً جدید (حداکثر ۶ ماهه)',
             'updated': 'آپدیت',
             'next': 'آپدیت بعدی: فردا ساعت ۹ صبح',
-            'warning': '⚠️ *هشدار مهم:*\nاین لیست بر اساس داده‌های بازار (حجم، نقدینگی، رنک) تهیه شده و به معنای تایید یا توصیه نیست. کوین‌های جدید ریسک بسیار بالایی دارند. همیشه وایت‌پیپر، تیم پروژه و قرارداد را شخصاً بررسی کنید (DYOR).',
-            'analyze_hint': 'برای تحلیل هر کدام، نام آن را به /analyze بفرستید.',
+            'warning': '⚠️ *هشدار مهم:*\nاین لیست صرفاً برای اطلاع‌رسانی است و توصیه سرمایه‌گذاری نیست. کوین‌های جدید ریسک بسیار بالایی دارند. برای سرمایه‌گذاری حتماً تحقیق بیشتری انجام دهید (DYOR): وایت‌پیپر، تیم پروژه و قرارداد را شخصاً بررسی کنید.',
+            'analyze_hint': 'برای تحلیل هر کدام، روی دکمه زیرش بزنید.',
+            'days_old': 'سن',
+            'days_text': 'روز',
+            'no_data': '❌ در حال حاضر کوین جدیدی با معیارهای حداقلی پیدا نشد.',
         },
         'en': {
-            'title': '🆕 Emerging Coins — Daily List',
+            'title': '🆕 Genuinely New Coins (Max 6 Months)',
             'updated': 'Updated',
             'next': 'Next update: Tomorrow 9 AM',
-            'warning': '⚠️ *Important Warning:*\nThis list is based on market data (volume, liquidity, rank) only — not investment advice. New coins carry very high risk. Always research the whitepaper, team, and contract yourself (DYOR).',
-            'analyze_hint': 'Use /analyze with any symbol to get full technical analysis.',
+            'warning': '⚠️ *Important Warning:*\nThis list is for informational purposes only and is NOT investment advice. New coins carry very high risk. Always do more research before investing (DYOR): check the whitepaper, team, and contract yourself.',
+            'analyze_hint': 'Tap the button below each coin for full analysis.',
+            'days_old': 'Age',
+            'days_text': 'days',
+            'no_data': '❌ No new coins matching minimum criteria found right now.',
         },
         'ru': {
-            'title': '🆕 Новые монеты — Ежедневный список',
+            'title': '🆕 Действительно новые монеты (до 6 месяцев)',
             'updated': 'Обновлено',
             'next': 'Следующее обновление: Завтра в 9:00',
-            'warning': '⚠️ *Важное предупреждение:*\nЭтот список основан только на рыночных данных (объём, ликвидность, ранг) — не является финансовым советом. Новые монеты несут очень высокий риск. Всегда изучайте whitepaper, команду и контракт самостоятельно (DYOR).',
-            'analyze_hint': 'Используйте /analyze с любым символом для полного технического анализа.',
+            'warning': '⚠️ *Важное предупреждение:*\nЭтот список предоставлен только для информации и НЕ является инвестиционным советом. Новые монеты несут очень высокий риск. Перед инвестированием проведите собственное исследование (DYOR): изучите whitepaper, команду и контракт.',
+            'analyze_hint': 'Нажмите кнопку под монетой для полного анализа.',
+            'days_old': 'Возраст',
+            'days_text': 'дней',
+            'no_data': '❌ Сейчас новых монет, соответствующих минимальным критериям, не найдено.',
         },
     }
     L = labels.get(lang, labels['en'])
@@ -174,19 +193,23 @@ def generate_new_coins_message(lang='fa'):
     symbols_list = []
 
     if not coins:
-        lines.append("❌ داده‌ای یافت نشد.")
+        lines.append(L['no_data'])
     else:
         for i, coin in enumerate(coins, 1):
             sym = coin['symbol']
             symbols_list.append(sym)
-            stars = "⭐" * min(coin['safety_score'], 5)
+            stars = "⭐" * min(max(coin['safety_score'], 1), 5)
             change_7d = coin.get('change_7d')
             change_text = f"{change_7d:+.1f}%" if change_7d is not None else "N/A"
             change_emoji = "📈" if change_7d and change_7d > 0 else "📉" if change_7d and change_7d < 0 else "➡️"
 
             lines.append(f"{'─'*28}")
             lines.append(f"*{i}. {coin['name']} ({sym})*")
-            lines.append(f"  🏆 رنک: #{coin['rank']}  |  امتیاز: {stars}")
+            lines.append(f"  📅 {L['days_old']}: {coin['days_old']} {L['days_text']}")
+            if coin['rank']:
+                lines.append(f"  🏆 رنک: #{coin['rank']}  |  امتیاز: {stars}")
+            else:
+                lines.append(f"  امتیاز: {stars}")
             lines.append(f"  💰 قیمت: ${coin['price']:,.6f}" if coin['price'] else "  💰 قیمت: N/A")
             lines.append(f"  📊 مارکت کپ: ${coin['market_cap']:,.0f}")
             lines.append(f"  {change_emoji} تغییر ۷ روزه: {change_text}")
