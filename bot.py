@@ -145,12 +145,41 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     subscribed_users.add(uid)
     msg = await update.message.reply_text(t(uid, 'watchlist_loading'))
     try:
-        result = generate_watchlist()
+        result, symbols_list = generate_watchlist()
         await msg.delete()
-        await update.message.reply_text(result, parse_mode="Markdown")
+
+        keyboard = []
+        row = []
+        for i, sym in enumerate(symbols_list):
+            row.append(InlineKeyboardButton(f"📊 {sym}", callback_data=f"wl_{sym}"))
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        await update.message.reply_text(result, parse_mode="Markdown", reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"Watchlist error: {e}")
         await msg.edit_text(f"❌ خطا: {str(e)}")
+
+
+async def watchlist_quick_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+    symbol = query.data.replace("wl_", "")
+    context.user_data['symbol'] = symbol
+
+    tfs = t(uid, 'timeframes')
+    keyboard = [
+        [InlineKeyboardButton(tfs["1m"], callback_data="1m"), InlineKeyboardButton(tfs["5m"], callback_data="5m"), InlineKeyboardButton(tfs["15m"], callback_data="15m")],
+        [InlineKeyboardButton(tfs["1h"], callback_data="1h"), InlineKeyboardButton(tfs["4h"], callback_data="4h")],
+        [InlineKeyboardButton(tfs["1d"], callback_data="1d"), InlineKeyboardButton(tfs["1w"], callback_data="1w")],
+    ]
+    await query.message.reply_text(f"✅ {symbol}USDT\n\n{t(uid, 'choose_tf')}", reply_markup=InlineKeyboardMarkup(keyboard))
+    return WAITING_TIMEFRAME
 
 async def send_weekly_watchlist(context):
     try:
@@ -456,12 +485,16 @@ def main():
     )
 
     analyze_conv = ConversationHandler(
-        entry_points=[CommandHandler("analyze", analyze_command)],
+        entry_points=[
+            CommandHandler("analyze", analyze_command),
+            CallbackQueryHandler(watchlist_quick_analyze, pattern="^wl_"),
+        ],
         states={
             WAITING_SYMBOL: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_symbol)],
             WAITING_TIMEFRAME: [CallbackQueryHandler(receive_timeframe, pattern="^(1m|5m|15m|1h|4h|1d|1w)$")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False,
     )
 
     journal_conv = ConversationHandler(
@@ -497,3 +530,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+# THIS IS JUST THE ADDITIONS - NOT A STANDALONE FILE
+
