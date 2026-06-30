@@ -6,3 +6,4 @@ matplotlib
 mplfinance
 openpyxl
 requests
+feedparser
