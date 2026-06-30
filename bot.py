@@ -603,13 +603,6 @@ def main():
     )
 
     app.job_queue.run_repeating(
-        send_hourly_news,
-        interval=900,
-        first=60,
-        name="news_update"
-    )
-
-    app.job_queue.run_repeating(
         check_breaking_news,
         interval=300,
         first=90,
