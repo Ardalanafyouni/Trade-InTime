@@ -138,7 +138,7 @@ def generate_news_message(lang='fa'):
     lines += [
         f"{'─'*28}",
         f"🔄 {labels['updated']}: {now.strftime('%Y-%m-%d %H:%M')} UTC",
-        f"⏰ آپدیت بعدی: ۱ ساعت دیگر",
+        f"⏰ آپدیت بعدی: ۱۵ دقیقه دیگر",
     ]
 
     return "\n".join(lines)
