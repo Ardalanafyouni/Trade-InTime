@@ -5,6 +5,29 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
+def translate_text(text, target_lang='fa'):
+    """Translate text using free Google Translate endpoint"""
+    if target_lang == 'en':
+        return text
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            'client': 'gtx',
+            'sl': 'en',
+            'tl': target_lang,
+            'dt': 't',
+            'q': text,
+        }
+        r = requests.get(url, params=params, timeout=8)
+        r.raise_for_status()
+        result = r.json()
+        translated = ''.join([seg[0] for seg in result[0] if seg[0]])
+        return translated
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return text
+
 RSS_FEEDS = {
     'fa': [
         ('CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/'),
@@ -28,9 +51,9 @@ LABELS = {
 
 
 def fetch_news(lang='fa', limit=8):
-    """Fetch latest crypto news from RSS feeds"""
+    """Fetch latest crypto news from RSS feeds (always in English) and translate"""
     all_items = []
-    feeds = RSS_FEEDS.get(lang, RSS_FEEDS['en'])
+    feeds = RSS_FEEDS.get('en', RSS_FEEDS['en'])
 
     for source_name, url in feeds:
         try:
@@ -38,8 +61,11 @@ def fetch_news(lang='fa', limit=8):
             for entry in feed.entries[:6]:
                 published = entry.get('published_parsed')
                 pub_date = datetime(*published[:6]) if published else datetime.utcnow()
+                title = entry.get('title', '')
+                translated_title = translate_text(title, lang) if lang != 'en' else title
                 all_items.append({
-                    'title': entry.get('title', ''),
+                    'title': translated_title,
+                    'original_title': title,
                     'link': entry.get('link', ''),
                     'source': source_name,
                     'published': pub_date,
