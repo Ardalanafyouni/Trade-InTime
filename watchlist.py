@@ -190,6 +190,9 @@ def generate_watchlist():
 
     watchlist_coins = watchlist_coins[:6]
 
+    # Return symbols list for inline buttons
+    symbols_list = [c['symbol'] for c in watchlist_coins]
+
     lines.append(f"🎯 *۶ ارز برتر برای واچ این هفته:*\n")
 
     for i, coin in enumerate(watchlist_coins, 1):
@@ -244,5 +247,4 @@ def generate_watchlist():
         f"🔄 آپدیت بعدی: دوشنبه آینده",
     ]
 
-    return "\n".join(lines)
-
+    return "\n".join(lines), symbols_list
