@@ -248,3 +248,4 @@ def generate_watchlist():
     ]
 
     return "\n".join(lines), symbols_list
+
