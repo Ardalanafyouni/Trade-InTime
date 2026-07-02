@@ -50,6 +50,45 @@ class CryptoAnalyzer:
         ], axis=1).max(axis=1)
         return tr.rolling(period).mean()
 
+    # ── Volume Analysis ──
+    def calc_volume_analysis(self, df, period=20):
+        volume = df['volume']
+        close, open_ = df['close'], df['open']
+
+        avg_volume = volume.rolling(period).mean().iloc[-1]
+        current_volume = volume.iloc[-1]
+        vol_ratio = current_volume / avg_volume if avg_volume and avg_volume > 0 else 1
+
+        # Short-term trend: last 5 candles vs the 5 before them
+        recent_avg = volume.tail(5).mean()
+        prior_avg = volume.tail(10).head(5).mean()
+        vol_trend_pct = round((recent_avg - prior_avg) / prior_avg * 100, 1) if prior_avg > 0 else 0
+        if vol_trend_pct > 15: vol_trend = "افزایشی"
+        elif vol_trend_pct < -15: vol_trend = "کاهشی"
+        else: vol_trend = "ثابت"
+
+        last_bullish = close.iloc[-1] > open_.iloc[-1]
+        is_spike = vol_ratio >= 2.0
+        is_high = vol_ratio >= 1.3
+        is_low = vol_ratio <= 0.5
+        # "Confirmation" = the latest candle's move is backed by meaningfully
+        # above-average participation, which is what gives a breakout/pattern
+        # credibility. Low-volume moves are flagged as weak/unreliable.
+        confirms_move = is_high
+
+        return {
+            'avg_volume': avg_volume,
+            'current_volume': current_volume,
+            'vol_ratio': round(vol_ratio, 2),
+            'vol_trend': vol_trend,
+            'vol_trend_pct': vol_trend_pct,
+            'is_spike': is_spike,
+            'is_high': is_high,
+            'is_low': is_low,
+            'last_bullish': last_bullish,
+            'confirms_move': confirms_move,
+        }
+
     # ── Fibonacci ──
     def calc_fibonacci(self, df, lookback=100):
         recent = df.tail(lookback)
@@ -249,6 +288,7 @@ class CryptoAnalyzer:
         rsi = self.calc_rsi(close).iloc[-1]
         macd, signal, hist = self.calc_macd(close)
         bb_upper, bb_mid, bb_lower = self.calc_bollinger(close)
+        vol = self.calc_volume_analysis(df)
 
         long_score = short_score = 0
         if rsi < 30: long_score += 3
@@ -272,11 +312,20 @@ class CryptoAnalyzer:
             if name in bull_p: long_score += 2
             elif name in bear_p: short_score += 2
 
+        # Volume: an above-average-volume candle adds conviction to whichever
+        # direction it closed; a spike adds even more. Low-volume candles add
+        # nothing, since a move with weak participation is less trustworthy.
+        if vol['is_high']:
+            vol_points = 2 if vol['is_spike'] else 1
+            if vol['last_bullish']: long_score += vol_points
+            else: short_score += vol_points
+
         return {
             'long_score': long_score, 'short_score': short_score,
             'rsi': rsi, 'macd': macd.iloc[-1], 'signal': signal.iloc[-1],
             'histogram': hist.iloc[-1], 'bb_upper': bb_upper.iloc[-1],
             'bb_lower': bb_lower.iloc[-1], 'bb_mid': bb_mid.iloc[-1],
+            'volume': vol,
         }
 
     # ── MAIN ANALYZE ──
@@ -405,11 +454,32 @@ class CryptoAnalyzer:
             f"  📏 ATR(14): `{atr:,.6f}`",
         ]
 
+        # ── Volume ──
+        vol = scores['volume']
+        vol_emoji = "🔥" if vol['is_spike'] else "🟢" if vol['is_high'] else "🔴" if vol['is_low'] else "🟡"
+        trend_emoji = "📈" if vol['vol_trend'] == "افزایشی" else "📉" if vol['vol_trend'] == "کاهشی" else "➡️"
+        lines += [f"", f"{'─'*28}", f"📶 *حجم معاملات:*"]
+        lines.append(f"  {vol_emoji} حجم کندل آخر: `{vol['current_volume']:,.2f}` ({vol['vol_ratio']}x میانگین)")
+        lines.append(f"  📊 میانگین ۲۰ کندل: `{vol['avg_volume']:,.2f}`")
+        lines.append(f"  {trend_emoji} روند حجم (۵ کندل اخیر): {vol['vol_trend']} ({vol['vol_trend_pct']:+.1f}%)")
+        if vol['is_spike']:
+            lines.append(f"  🔥 اسپایک حجمی — حرکت اخیر با قدرت بالایی همراه بوده")
+        elif vol['is_low']:
+            lines.append(f"  ⚠️ حجم پایین — این حرکت پشتوانه معاملاتی ضعیفی دارد")
+        if vol['confirms_move']:
+            direction_txt = "صعودی" if vol['last_bullish'] else "نزولی"
+            lines.append(f"  ✅ حجم، حرکت {direction_txt} کندل آخر را تایید می‌کند")
+
         # ── Candlestick Patterns ──
         lines += [f"", f"{'─'*28}", f"🕯 *الگوهای کندل:*"]
+        bull_p = ["Hammer","Bullish Engulfing","Morning Star","Bullish Marubozu","Three White Soldiers"]
+        bear_p = ["Shooting Star","Bearish Engulfing","Evening Star","Bearish Marubozu","Three Black Crows"]
         if patterns:
             for name, pat_emoji, desc in patterns:
-                lines.append(f"  {pat_emoji} {name}: {desc}")
+                confirm_tag = ""
+                if vol['is_high'] and ((name in bull_p and vol['last_bullish']) or (name in bear_p and not vol['last_bullish'])):
+                    confirm_tag = "  ✅ تایید حجمی"
+                lines.append(f"  {pat_emoji} {name}: {desc}{confirm_tag}")
         else:
             lines.append("  ⚪ الگوی خاصی شناسایی نشد")
 
@@ -421,4 +491,5 @@ class CryptoAnalyzer:
         ]
 
         return "\n".join(lines)
+
 
