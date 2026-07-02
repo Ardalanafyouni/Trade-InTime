@@ -19,10 +19,46 @@ plt.rcParams['grid.color'] = '#2a2e39'
 plt.rcParams['text.color'] = '#d1d4dc'
 
 
-def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, signal_data):
-    df = df.tail(60).copy().reset_index(drop=True)
+def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, signal_data, candles_to_show=250):
+    df_full = df.copy().reset_index(drop=True)
 
-    fig = plt.figure(figsize=(14, 12))
+    # ── Indicators computed on the FULL fetched history first (so EMA200 /
+    # RSI / MACD have enough warm-up data to be accurate), then sliced down
+    # to the display window. Computing them only on the sliced window (as
+    # before) starves long-period indicators of history and skews them.
+    close_full = df_full['close']
+    ema20_full = close_full.ewm(span=20, adjust=False).mean()
+    ema50_full = close_full.ewm(span=50, adjust=False).mean()
+    ema200_full = close_full.ewm(span=200, adjust=False).mean()
+
+    delta_full = close_full.diff()
+    gain_full = delta_full.clip(lower=0).rolling(14).mean()
+    loss_full = (-delta_full.clip(upper=0)).rolling(14).mean()
+    rsi_full = 100 - (100 / (1 + gain_full / loss_full))
+
+    ema12_full = close_full.ewm(span=12, adjust=False).mean()
+    ema26_full = close_full.ewm(span=26, adjust=False).mean()
+    macd_full = ema12_full - ema26_full
+    signal_full = macd_full.ewm(span=9, adjust=False).mean()
+    histogram_full = macd_full - signal_full
+
+    vol_ma_full = df_full['volume'].rolling(20).mean()
+
+    n_show = min(candles_to_show, len(df_full))
+    df = df_full.tail(n_show).copy().reset_index(drop=True)
+    ema20 = ema20_full.tail(n_show).reset_index(drop=True)
+    ema50 = ema50_full.tail(n_show).reset_index(drop=True)
+    ema200 = ema200_full.tail(n_show).reset_index(drop=True)
+    rsi = rsi_full.tail(n_show).reset_index(drop=True)
+    macd = macd_full.tail(n_show).reset_index(drop=True)
+    signal_line = signal_full.tail(n_show).reset_index(drop=True)
+    histogram = histogram_full.tail(n_show).reset_index(drop=True)
+    vol_ma = vol_ma_full.tail(n_show).reset_index(drop=True)
+    close = df['close']
+
+    # Wider figure and thinner candles/wicks so 250 candles stay readable
+    fig_width = max(14, min(26, n_show * 0.09))
+    fig = plt.figure(figsize=(fig_width, 12))
     gs = gridspec.GridSpec(4, 1, height_ratios=[3, 1, 1, 1], hspace=0.08)
 
     ax1 = fig.add_subplot(gs[0])
@@ -31,21 +67,18 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     ax3 = fig.add_subplot(gs[3], sharex=ax1)
 
     # ── Candlesticks ──
+    body_w = 0.6 if n_show <= 80 else 0.45 if n_show <= 150 else 0.32
+    wick_lw = 0.8 if n_show <= 150 else 0.5
     for i, row in df.iterrows():
         color = '#26a69a' if row['close'] >= row['open'] else '#ef5350'
-        ax1.plot([i, i], [row['low'], row['high']], color=color, linewidth=0.8)
+        ax1.plot([i, i], [row['low'], row['high']], color=color, linewidth=wick_lw)
         body_bottom = min(row['open'], row['close'])
         body_height = abs(row['close'] - row['open'])
-        rect = plt.Rectangle((i - 0.3, body_bottom), 0.6, max(body_height, row['close'] * 0.0001),
+        rect = plt.Rectangle((i - body_w/2, body_bottom), body_w, max(body_height, row['close'] * 0.0001),
                               color=color, zorder=3)
         ax1.add_patch(rect)
 
     # ── EMA lines ──
-    close = df['close']
-    ema20 = close.ewm(span=20, adjust=False).mean()
-    ema50 = close.ewm(span=50, adjust=False).mean()
-    ema200 = close.ewm(span=200, adjust=False).mean()
-
     ax1.plot(range(len(df)), ema20, color='#f0c040', linewidth=1.2, label='EMA20', alpha=0.9)
     ax1.plot(range(len(df)), ema50, color='#2196F3', linewidth=1.2, label='EMA50', alpha=0.9)
     ax1.plot(range(len(df)), ema200, color='#ff6b6b', linewidth=1.2, label='EMA200', alpha=0.9)
@@ -61,11 +94,11 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
             ax1.text(len(df) - 1, lvl_price, f' Fib {lvl_name}', fontsize=6,
                      color=color, va='center', alpha=0.8)
 
-    # ── Support & Resistance ──
+    # ── Support & Resistance (dashed, kept minimal so the chart stays readable) ──
     for s in supports[:2]:
-        ax1.axhline(y=s, color='#26a69a', linewidth=1, linestyle=':', alpha=0.7)
+        ax1.axhline(y=s, color='#26a69a', linewidth=1.1, linestyle='--', alpha=0.75)
     for r in resistances[:2]:
-        ax1.axhline(y=r, color='#ef5350', linewidth=1, linestyle=':', alpha=0.7)
+        ax1.axhline(y=r, color='#ef5350', linewidth=1.1, linestyle='--', alpha=0.75)
 
     # ── Mark candlestick patterns ──
     bull_patterns = ["Hammer", "Bullish Engulfing", "Morning Star", "Bullish Marubozu", "Three White Soldiers"]
@@ -133,9 +166,8 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     # ── Volume ──
     volume = df['volume']
     vol_colors = ['#26a69a' if row['close'] >= row['open'] else '#ef5350' for _, row in df.iterrows()]
-    ax_vol.bar(range(len(df)), volume, color=vol_colors, alpha=0.8, width=0.8)
-
-    vol_ma = volume.rolling(20).mean()
+    vol_width = 0.8 if n_show <= 150 else 0.6
+    ax_vol.bar(range(len(df)), volume, color=vol_colors, alpha=0.8, width=vol_width)
     ax_vol.plot(range(len(df)), vol_ma, color='#f0c040', linewidth=1.1, label='Vol MA20', alpha=0.9)
 
     avg_vol = vol_ma.iloc[-1] if not pd.isna(vol_ma.iloc[-1]) else volume.mean()
@@ -153,12 +185,6 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     plt.setp(ax_vol.get_xticklabels(), visible=False)
 
     # ── RSI ──
-    delta = close.diff()
-    gain = delta.clip(lower=0).rolling(14).mean()
-    loss = (-delta.clip(upper=0)).rolling(14).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-
     ax2.plot(range(len(df)), rsi, color='#ce93d8', linewidth=1.2, label='RSI(14)')
     ax2.axhline(y=70, color='#ef5350', linewidth=0.7, linestyle='--', alpha=0.7)
     ax2.axhline(y=30, color='#26a69a', linewidth=0.7, linestyle='--', alpha=0.7)
@@ -171,14 +197,9 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     plt.setp(ax2.get_xticklabels(), visible=False)
 
     # ── MACD ──
-    ema12 = close.ewm(span=12, adjust=False).mean()
-    ema26 = close.ewm(span=26, adjust=False).mean()
-    macd = ema12 - ema26
-    signal_line = macd.ewm(span=9, adjust=False).mean()
-    histogram = macd - signal_line
-
     colors = ['#26a69a' if h >= 0 else '#ef5350' for h in histogram]
-    ax3.bar(range(len(df)), histogram, color=colors, alpha=0.7, width=0.8)
+    macd_width = 0.8 if n_show <= 150 else 0.6
+    ax3.bar(range(len(df)), histogram, color=colors, alpha=0.7, width=macd_width)
     ax3.plot(range(len(df)), macd, color='#2196F3', linewidth=1.2, label='MACD')
     ax3.plot(range(len(df)), signal_line, color='#ff9800', linewidth=1.2, label='Signal')
     ax3.axhline(y=0, color='#90a4ae', linewidth=0.5)
@@ -187,7 +208,8 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     ax3.legend(loc='upper left', fontsize=7, framealpha=0.3, facecolor='#1e222d')
 
     # ── X axis labels ──
-    step = max(1, len(df) // 8)
+    n_ticks = 12
+    step = max(1, len(df) // n_ticks)
     tick_positions = range(0, len(df), step)
     tick_labels = [df['timestamp'].iloc[i].strftime('%m/%d %H:%M') for i in tick_positions]
     ax3.set_xticks(list(tick_positions))
