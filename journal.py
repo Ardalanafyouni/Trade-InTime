@@ -2,7 +2,12 @@ import json
 import os
 from datetime import datetime
 
-JOURNAL_FILE = "journals.json"
+# DATA_DIR should point at a Railway Volume mount path (e.g. /data) so this
+# file survives redeploys. Falls back to the working directory if unset,
+# which is fine for local testing but gets wiped on every Railway redeploy.
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+JOURNAL_FILE = os.path.join(DATA_DIR, "journals.json")
 
 def load_journals():
     if os.path.exists(JOURNAL_FILE):
