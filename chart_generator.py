@@ -22,12 +22,13 @@ plt.rcParams['text.color'] = '#d1d4dc'
 def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, signal_data):
     df = df.tail(60).copy().reset_index(drop=True)
 
-    fig = plt.figure(figsize=(14, 10))
-    gs = gridspec.GridSpec(3, 1, height_ratios=[3, 1, 1], hspace=0.05)
+    fig = plt.figure(figsize=(14, 12))
+    gs = gridspec.GridSpec(4, 1, height_ratios=[3, 1, 1, 1], hspace=0.08)
 
     ax1 = fig.add_subplot(gs[0])
-    ax2 = fig.add_subplot(gs[1], sharex=ax1)
-    ax3 = fig.add_subplot(gs[2], sharex=ax1)
+    ax_vol = fig.add_subplot(gs[1], sharex=ax1)
+    ax2 = fig.add_subplot(gs[2], sharex=ax1)
+    ax3 = fig.add_subplot(gs[3], sharex=ax1)
 
     # ── Candlesticks ──
     for i, row in df.iterrows():
@@ -129,6 +130,28 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     ax1.set_ylabel('Price', fontsize=8)
     plt.setp(ax1.get_xticklabels(), visible=False)
 
+    # ── Volume ──
+    volume = df['volume']
+    vol_colors = ['#26a69a' if row['close'] >= row['open'] else '#ef5350' for _, row in df.iterrows()]
+    ax_vol.bar(range(len(df)), volume, color=vol_colors, alpha=0.8, width=0.8)
+
+    vol_ma = volume.rolling(20).mean()
+    ax_vol.plot(range(len(df)), vol_ma, color='#f0c040', linewidth=1.1, label='Vol MA20', alpha=0.9)
+
+    avg_vol = vol_ma.iloc[-1] if not pd.isna(vol_ma.iloc[-1]) else volume.mean()
+    last_vol = volume.iloc[-1]
+    vol_ratio = last_vol / avg_vol if avg_vol > 0 else 1
+    vol_tag = "🔥 SPIKE" if vol_ratio >= 2 else "HIGH" if vol_ratio >= 1.3 else "LOW" if vol_ratio <= 0.5 else ""
+    vol_tag_color = '#ff6b6b' if vol_ratio >= 2 else '#26a69a' if vol_ratio >= 1.3 else '#90a4ae' if vol_ratio <= 0.5 else '#d1d4dc'
+    ax_vol.text(0.02, 0.85, f"Vol: {last_vol:,.0f}  ({vol_ratio:.1f}x)  {vol_tag}",
+                transform=ax_vol.transAxes, fontsize=7.5, color=vol_tag_color,
+                va='top', fontweight='bold')
+
+    ax_vol.set_ylabel('Volume', fontsize=8)
+    ax_vol.grid(True, alpha=0.2)
+    ax_vol.legend(loc='upper right', fontsize=6.5, framealpha=0.3, facecolor='#1e222d')
+    plt.setp(ax_vol.get_xticklabels(), visible=False)
+
     # ── RSI ──
     delta = close.diff()
     gain = delta.clip(lower=0).rolling(14).mean()
@@ -179,4 +202,5 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
     buf.seek(0)
     plt.close(fig)
     return buf
+
 
