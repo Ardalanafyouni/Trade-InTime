@@ -7,9 +7,17 @@ from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
+# AI_PROVIDER selects which model does the writing: "gemini" (Google, free
+# tier available, no card needed — good for testing) or "anthropic" (Claude,
+# paid). Switching later is just changing this one env var, no code changes.
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini").lower()
+
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")  # free-tier eligible
 
 BULL_PATTERNS = ["Hammer", "Bullish Engulfing", "Morning Star", "Bullish Marubozu", "Three White Soldiers"]
 BEAR_PATTERNS = ["Shooting Star", "Bearish Engulfing", "Evening Star", "Bearish Marubozu", "Three Black Crows"]
@@ -34,10 +42,12 @@ NO_NEWS = {
     'ru': 'Свежих новостей по этой монете не найдено.',
 }
 
+REQUIRED_KEY_VAR = "GEMINI_API_KEY" if AI_PROVIDER != "anthropic" else "ANTHROPIC_API_KEY"
+
 NO_KEY_ERROR = {
-    'fa': 'کلید API هوش مصنوعی تنظیم نشده (ANTHROPIC_API_KEY را در تنظیمات Railway اضافه کنید).',
-    'en': 'AI API key is not configured (set ANTHROPIC_API_KEY in Railway variables).',
-    'ru': 'API-ключ ИИ не настроен (добавьте ANTHROPIC_API_KEY в переменные Railway).',
+    'fa': f'کلید API هوش مصنوعی تنظیم نشده ({REQUIRED_KEY_VAR} را در تنظیمات Railway اضافه کنید).',
+    'en': f'AI API key is not configured (set {REQUIRED_KEY_VAR} in Railway variables).',
+    'ru': f'API-ключ ИИ не настроен (добавьте {REQUIRED_KEY_VAR} в переменные Railway).',
 }
 
 
@@ -127,6 +137,32 @@ def _call_claude(system_prompt, user_content, max_tokens=550, timeout=30):
     return "\n".join(parts).strip()
 
 
+def _call_gemini(system_prompt, user_content, max_tokens=550, timeout=30):
+    if not GEMINI_API_KEY:
+        raise RuntimeError("NO_API_KEY")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    payload = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_content}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.4},
+    }
+    resp = requests.post(url, params={"key": GEMINI_API_KEY}, json=payload, timeout=timeout)
+    resp.raise_for_status()
+    data = resp.json()
+    candidates = data.get('candidates') or []
+    if not candidates:
+        raise RuntimeError("EMPTY_RESPONSE")
+    parts = candidates[0].get('content', {}).get('parts', [])
+    return "".join(p.get('text', '') for p in parts).strip()
+
+
+def _call_ai(system_prompt, user_content, max_tokens=550, timeout=30):
+    if AI_PROVIDER == "anthropic":
+        return _call_claude(system_prompt, user_content, max_tokens, timeout)
+    return _call_gemini(system_prompt, user_content, max_tokens, timeout)
+
+
 def generate_ai_analysis(symbol, timeframe, price, trend_label, scores, patterns,
                           fib_levels, supports, resistances, atr, lang='fa'):
     """Returns (formatted_message, error) — error is None on success."""
@@ -158,7 +194,7 @@ def generate_ai_analysis(symbol, timeframe, price, trend_label, scores, patterns
     )
 
     try:
-        commentary = _call_claude(system_prompt, user_content)
+        commentary = _call_ai(system_prompt, user_content)
     except RuntimeError:
         return None, NO_KEY_ERROR.get(lang, NO_KEY_ERROR['en'])
     except requests.exceptions.HTTPError as e:
@@ -172,3 +208,4 @@ def generate_ai_analysis(symbol, timeframe, price, trend_label, scores, patterns
     disclaimer = DISCLAIMERS.get(lang, DISCLAIMERS['en'])
     message = f"{title}\n\n{commentary}\n\n{disclaimer}"
     return message, None
+
