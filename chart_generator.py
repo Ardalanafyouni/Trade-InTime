@@ -186,8 +186,8 @@ def generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib
 
     # ── RSI ──
     ax2.plot(range(len(df)), rsi, color='#ce93d8', linewidth=1.2, label='RSI(14)')
-    ax2.axhline(y=70, color='#ef5350', linewidth=0.7, linestyle='--', alpha=0.7)
-    ax2.axhline(y=30, color='#26a69a', linewidth=0.7, linestyle='--', alpha=0.7)
+    ax2.axhline(y=70, color='#02f502'', linewidth=0.7, linestyle='--', alpha=0.7)
+    ax2.axhline(y=30, color='#e60b07'', linewidth=0.7, linestyle='--', alpha=0.7)
     ax2.fill_between(range(len(df)), rsi, 70, where=(rsi >= 70), alpha=0.2, color='#02f502')
     ax2.fill_between(range(len(df)), rsi, 30, where=(rsi <= 30), alpha=0.2, color='#e60b07')
     ax2.set_ylim(0, 100)
