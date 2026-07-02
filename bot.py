@@ -575,8 +575,7 @@ async def whoami_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = user.id
     admin_note = "✅ شما تو لیست ADMIN_IDS هستید." if is_admin(uid) else "❌ شما ادمین نیستید (یا ADMIN_IDS هنوز درست تنظیم نشده)."
     await update.message.reply_text(
-        f"🆔 آیدی عددی تلگرام شما:\n`{uid}`\n\n{admin_note}",
-        parse_mode="Markdown"
+        f"🆔 آیدی عددی تلگرام شما: {uid}\n\n{admin_note}"
     )
 
 
