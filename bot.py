@@ -17,6 +17,7 @@ from journal import add_trade, get_trades, delete_trade, get_stats, load_journal
 from watchlist import generate_watchlist
 from news import generate_news_message, get_fresh_breaking_news, fetch_news
 from new_coins import generate_new_coins_message
+from airdrops import generate_airdrops_message
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -31,7 +32,7 @@ WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 
 TEXTS = {
     'fa': {
-        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/terms - اصطلاحات\n/lang - زبان",
+        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/airdrops - ایردراپ‌های معتبر\n/terms - اصطلاحات\n/lang - زبان",
         'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
         'choose_tf': "تایم‌فریم را انتخاب کنید:",
         'analyzing': "⏳ در حال تحلیل و رسم چارت",
@@ -44,7 +45,7 @@ TEXTS = {
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
     },
     'en': {
-        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/terms - Terms\n/lang - Language",
+        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/terms - Terms\n/lang - Language",
         'enter_symbol': "🪙 Enter coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Select timeframe:",
         'analyzing': "⏳ Analyzing and generating chart",
@@ -57,7 +58,7 @@ TEXTS = {
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
     },
     'ru': {
-        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/terms - Термины\n/lang - Язык",
+        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/terms - Термины\n/lang - Язык",
         'enter_symbol': "🪙 Введите символ:\nПример: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Выберите таймфрейм:",
         'analyzing': "⏳ Анализирую и строю график",
@@ -76,6 +77,7 @@ user_langs = {}
 subscribed_users = set()
 news_subscribers = set()
 newcoins_subscribers = set()
+airdrops_subscribers = set()
 seen_news_links = set()
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
@@ -213,6 +215,31 @@ async def send_daily_newcoins(context):
                 keyboard.append(row)
             reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
             await context.bot.send_message(chat_id=uid, text=result, parse_mode="Markdown", reply_markup=reply_markup, disable_web_page_preview=True)
+        except:
+            pass
+
+
+async def airdrops_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    airdrops_subscribers.add(uid)
+    lang = get_lang(uid)
+    loading_text = {"fa": "⏳ در حال بررسی ایردراپ‌های معتبر...", "en": "⏳ Scanning verified airdrops...", "ru": "⏳ Сканирую проверенные аирдропы..."}
+    msg = await update.message.reply_text(loading_text.get(lang, loading_text['en']))
+    try:
+        result = generate_airdrops_message(lang)
+        await msg.delete()
+        await update.message.reply_text(result, parse_mode="Markdown", disable_web_page_preview=True)
+    except Exception as e:
+        logger.error(f"Airdrops error: {e}")
+        await msg.edit_text(f"❌ {str(e)}")
+
+
+async def send_daily_airdrops(context):
+    for uid in airdrops_subscribers:
+        try:
+            lang = get_lang(uid)
+            result = generate_airdrops_message(lang)
+            await context.bot.send_message(chat_id=uid, text=result, parse_mode="Markdown", disable_web_page_preview=True)
         except:
             pass
 
@@ -602,6 +629,12 @@ def main():
         name="daily_newcoins"
     )
 
+    app.job_queue.run_daily(
+        send_daily_airdrops,
+        time=dtime(10, 0, 0),
+        name="daily_airdrops"
+    )
+
     app.job_queue.run_repeating(
         check_breaking_news,
         interval=300,
@@ -647,6 +680,7 @@ def main():
     app.add_handler(CommandHandler("watchlist", watchlist_command))
     app.add_handler(CommandHandler("news", news_command))
     app.add_handler(CommandHandler("newcoins", newcoins_command))
+    app.add_handler(CommandHandler("airdrops", airdrops_command))
     app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
     app.add_handler(analyze_conv)
     app.add_handler(journal_conv)
@@ -658,4 +692,5 @@ def main():
 if __name__ == "__main__":
     main()
 # THIS IS JUST THE ADDITIONS - NOT A STANDALONE FILE
+
 
