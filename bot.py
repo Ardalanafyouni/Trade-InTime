@@ -18,6 +18,8 @@ from watchlist import generate_watchlist
 from news import generate_news_message, get_fresh_breaking_news, fetch_news
 from new_coins import generate_new_coins_message
 from airdrops import generate_airdrops_message
+from ai_analysis import generate_ai_analysis
+from users import track_user, generate_users_report
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -41,6 +43,9 @@ TEXTS = {
         'choose_lang': "🌐 زبان را انتخاب کنید:",
         'lang_set': "✅ زبان فارسی انتخاب شد.",
         'watchlist_loading': "⏳ در حال دریافت داده‌های بازار...",
+        'ai_button': "🤖 تحلیل هوش مصنوعی (اختصاصی)",
+        'ai_loading': "⏳ در حال ترکیب دیتای تکنیکال با اخبار بروز و تولید تحلیل...",
+        'ai_limit': "⛔️ شما به سقف {limit} تحلیل هوش مصنوعی در روز رسیده‌اید. فردا دوباره امتحان کنید.",
         'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه",
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
     },
@@ -54,6 +59,9 @@ TEXTS = {
         'choose_lang': "🌐 Choose your language:",
         'lang_set': "✅ English selected.",
         'watchlist_loading': "⏳ Fetching market data...",
+        'ai_button': "🤖 AI Analysis (Custom)",
+        'ai_loading': "⏳ Combining technical data with fresh news and generating analysis...",
+        'ai_limit': "⛔️ You've reached the daily limit of {limit} AI analyses. Try again tomorrow.",
         'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min",
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
     },
@@ -67,6 +75,9 @@ TEXTS = {
         'choose_lang': "🌐 Выберите язык:",
         'lang_set': "✅ Русский выбран.",
         'watchlist_loading': "⏳ Получаю данные рынка...",
+        'ai_button': "🤖 ИИ-анализ (персональный)",
+        'ai_loading': "⏳ Объединяю технические данные со свежими новостями и генерирую анализ...",
+        'ai_limit': "⛔️ Вы достигли дневного лимита {limit} ИИ-анализов. Попробуйте завтра.",
         'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин",
                        "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
     }
@@ -79,6 +90,27 @@ news_subscribers = set()
 newcoins_subscribers = set()
 airdrops_subscribers = set()
 seen_news_links = set()
+
+# ── AI Analysis rate limiting (in-memory, resets on deploy) ──
+AI_DAILY_LIMIT = 5
+ai_usage = {}  # uid -> {'date': date, 'count': int}
+
+def check_and_use_ai_quota(uid):
+    today = datetime.utcnow().date()
+    entry = ai_usage.get(uid)
+    if not entry or entry['date'] != today:
+        entry = {'date': today, 'count': 0}
+        ai_usage[uid] = entry
+    if entry['count'] >= AI_DAILY_LIMIT:
+        return False
+    entry['count'] += 1
+    return True
+
+# ── Admin access (for /stats) ──
+ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()}
+
+def is_admin(uid):
+    return uid in ADMIN_IDS
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
 def t(uid, key): return TEXTS[get_lang(uid)][key]
@@ -525,7 +557,26 @@ async def j_close_pnl(update, context):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     subscribed_users.add(uid)
+    user = update.effective_user
+    track_user(uid, user.username, user.first_name, started=True)
     await update.message.reply_text(t(uid, 'welcome'), parse_mode="Markdown")
+
+async def track_activity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Runs on every incoming update (message or button tap) in a low-priority
+    group so it never blocks the normal handlers. Lets /stats show anyone who
+    has used the bot at all, not just people who explicitly ran /start."""
+    user = update.effective_user
+    if user:
+        track_user(user.id, user.username, user.first_name)
+
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        return
+    lang = get_lang(uid)
+    await update.message.reply_text(generate_users_report(lang))
+
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -595,12 +646,53 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         scores = analyzer.compute_signal(df, patterns, trend_type)
         chart_buf = generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, scores)
         text_result = analyzer.analyze(symbol, timeframe)
+        ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
         await query.message.reply_photo(photo=chart_buf, caption=f"📊 {symbol}USDT | {tfs.get(timeframe)}")
-        await query.message.reply_text(text_result, parse_mode="Markdown")
+        await query.message.reply_text(text_result, parse_mode="Markdown", reply_markup=ai_keyboard)
     except Exception as e:
         logger.error(f"Error: {e}")
         await query.message.reply_text(f"{t(uid, 'error')} {str(e)}")
     return ConversationHandler.END
+
+
+async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+    lang = get_lang(uid)
+
+    try:
+        _, symbol, timeframe = query.data.split('_', 2)
+    except ValueError:
+        return
+
+    if not check_and_use_ai_quota(uid):
+        await query.message.reply_text(t(uid, 'ai_limit').format(limit=AI_DAILY_LIMIT))
+        return
+
+    msg = await query.message.reply_text(t(uid, 'ai_loading'))
+    try:
+        df = analyzer.fetch_ohlcv(symbol, timeframe, limit=300)
+        patterns = analyzer.detect_patterns(df)
+        trend_label, trend_type = analyzer.determine_trend(df)
+        fib_levels, _, _ = analyzer.calc_fibonacci(df)
+        supports, resistances = analyzer.find_support_resistance(df)
+        scores = analyzer.compute_signal(df, patterns, trend_type)
+        atr = analyzer.calc_atr(df).iloc[-1]
+        price = df['close'].iloc[-1]
+
+        result_text, err = generate_ai_analysis(
+            symbol, timeframe, price, trend_label, scores, patterns,
+            fib_levels, supports, resistances, atr, lang
+        )
+        await msg.delete()
+        if err:
+            await query.message.reply_text(f"❌ {err}")
+        else:
+            await query.message.reply_text(result_text, disable_web_page_preview=True)
+    except Exception as e:
+        logger.error(f"AI analysis error: {e}")
+        await msg.edit_text(f"{t(uid, 'error')} {str(e)}")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -674,6 +766,7 @@ def main():
     )
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("lang", lang_command))
     app.add_handler(CommandHandler("terms", terms_command))
     app.add_handler(CommandHandler("journal", journal_command))
@@ -682,6 +775,12 @@ def main():
     app.add_handler(CommandHandler("newcoins", newcoins_command))
     app.add_handler(CommandHandler("airdrops", airdrops_command))
     app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
+    app.add_handler(CallbackQueryHandler(ai_analysis_callback, pattern="^ai_"))
+
+    # Low-priority group: tracks any user activity (message or button tap)
+    # for /stats, without blocking the normal handlers above.
+    app.add_handler(MessageHandler(filters.ALL, track_activity), group=1)
+    app.add_handler(CallbackQueryHandler(track_activity), group=1)
     app.add_handler(analyze_conv)
     app.add_handler(journal_conv)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
