@@ -570,6 +570,16 @@ async def track_activity(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track_user(user.id, user.username, user.first_name)
 
 
+async def whoami_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    uid = user.id
+    admin_note = "✅ شما تو لیست ADMIN_IDS هستید." if is_admin(uid) else "❌ شما ادمین نیستید (یا ADMIN_IDS هنوز درست تنظیم نشده)."
+    await update.message.reply_text(
+        f"🆔 آیدی عددی تلگرام شما:\n`{uid}`\n\n{admin_note}",
+        parse_mode="Markdown"
+    )
+
+
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if not is_admin(uid):
@@ -767,6 +777,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("whoami", whoami_command))
     app.add_handler(CommandHandler("lang", lang_command))
     app.add_handler(CommandHandler("terms", terms_command))
     app.add_handler(CommandHandler("journal", journal_command))
