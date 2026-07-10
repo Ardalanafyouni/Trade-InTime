@@ -137,7 +137,7 @@ def _call_claude(system_prompt, user_content, max_tokens=550, timeout=30):
     return "\n".join(parts).strip()
 
 
-def _call_gemini(system_prompt, user_content, max_tokens=550, timeout=30):
+def _call_gemini(system_prompt, user_content, max_tokens=900, timeout=30):
     if not GEMINI_API_KEY:
         raise RuntimeError("NO_API_KEY")
 
@@ -145,7 +145,16 @@ def _call_gemini(system_prompt, user_content, max_tokens=550, timeout=30):
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_content}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.4},
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": 0.4,
+            # Gemini 2.5 Flash does internal "thinking" by default, and those
+            # thinking tokens are deducted from maxOutputTokens too — with a
+            # modest budget this can silently eat the entire response, leaving
+            # a one-line/truncated answer. We don't need reasoning for a
+            # short commentary, so turn thinking off.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     resp = requests.post(url, params={"key": GEMINI_API_KEY}, json=payload, timeout=timeout)
     resp.raise_for_status()
@@ -154,7 +163,11 @@ def _call_gemini(system_prompt, user_content, max_tokens=550, timeout=30):
     if not candidates:
         raise RuntimeError("EMPTY_RESPONSE")
     parts = candidates[0].get('content', {}).get('parts', [])
-    return "".join(p.get('text', '') for p in parts).strip()
+    text = "".join(p.get('text', '') for p in parts).strip()
+    if not text:
+        finish_reason = candidates[0].get('finishReason', 'unknown')
+        raise RuntimeError(f"EMPTY_TEXT:{finish_reason}")
+    return text
 
 
 def _call_ai(system_prompt, user_content, max_tokens=550, timeout=30):
@@ -195,8 +208,12 @@ def generate_ai_analysis(symbol, timeframe, price, trend_label, scores, patterns
 
     try:
         commentary = _call_ai(system_prompt, user_content)
-    except RuntimeError:
-        return None, NO_KEY_ERROR.get(lang, NO_KEY_ERROR['en'])
+    except RuntimeError as e:
+        code = str(e)
+        if code == "NO_API_KEY":
+            return None, NO_KEY_ERROR.get(lang, NO_KEY_ERROR['en'])
+        logger.error(f"AI analysis empty/truncated response: {code}")
+        return None, f"empty response from model ({code})"
     except requests.exceptions.HTTPError as e:
         logger.error(f"AI analysis HTTP error: {e} | body={getattr(e.response, 'text', '')[:300]}")
         return None, f"API error: {e}"
