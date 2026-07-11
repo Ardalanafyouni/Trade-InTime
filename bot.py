@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 from io import BytesIO
 from datetime import datetime, time as dtime
@@ -110,6 +111,13 @@ ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.str
 
 def is_admin(uid):
     return uid in ADMIN_IDS
+
+
+async def run_blocking(func, *args, timeout=25, **kwargs):
+    """Runs a blocking (sync) call in a worker thread with a hard timeout,
+    so a slow/unresponsive exchange raises a catchable error instead of
+    hanging the whole bot forever with no feedback to the user."""
+    return await asyncio.wait_for(asyncio.to_thread(func, *args, **kwargs), timeout=timeout)
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
 def t(uid, key): return TEXTS[get_lang(uid)][key]
@@ -636,17 +644,22 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tfs = t(uid, 'timeframes')
     await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT ...")
     try:
-        df = analyzer.fetch_ohlcv(symbol, timeframe, limit=300)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
         supports, resistances = analyzer.find_support_resistance(df)
         scores = analyzer.compute_signal(df, patterns, trend_type)
         chart_buf = generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, scores)
-        text_result = analyzer.analyze(symbol, timeframe, lang)
+        text_result = await run_blocking(analyzer.analyze, symbol, timeframe, lang)
         ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
         await query.message.reply_photo(photo=chart_buf, caption=f"📊 {symbol}USDT | {tfs.get(timeframe)}")
         await query.message.reply_text(text_result, parse_mode="Markdown", reply_markup=ai_keyboard)
+    except asyncio.TimeoutError:
+        timeout_msg = {"fa": "⏱ صرافی خیلی دیر جواب داد. لطفاً چند لحظه دیگه دوباره امتحان کن.",
+                       "en": "⏱ The exchange took too long to respond. Please try again in a moment.",
+                       "ru": "⏱ Биржа слишком долго отвечала. Пожалуйста, попробуйте ещё раз через минуту."}
+        await query.message.reply_text(timeout_msg.get(lang, timeout_msg['en']))
     except Exception as e:
         logger.error(f"Error: {e}")
         await query.message.reply_text(f"{t(uid, 'error')} {str(e)}")
@@ -670,7 +683,7 @@ async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     msg = await query.message.reply_text(t(uid, 'ai_loading'))
     try:
-        df = analyzer.fetch_ohlcv(symbol, timeframe, limit=300)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
