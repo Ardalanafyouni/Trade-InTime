@@ -111,7 +111,7 @@ LABELS = {
 
 class CryptoAnalyzer:
     def __init__(self):
-        self.exchange = ccxt.kucoin({'enableRateLimit': True})
+        self.exchange = ccxt.kucoin({'enableRateLimit': True, 'timeout': 15000})
 
     def fetch_ohlcv(self, symbol, timeframe, limit=300):
         pair = f"{symbol}/USDT"
