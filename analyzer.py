@@ -6,6 +6,108 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+LABELS = {
+    'fa': {
+        'tf_names': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه", "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
+        'trend': {'bullish': "صعودی قوی 📈", 'mild_bullish': "صعودی ضعیف 📈", 'neutral': "خنثی ↔️",
+                  'mild_bearish': "نزولی ضعیف 📉", 'bearish': "نزولی قوی 📉"},
+        'vol_trend': {'up': 'افزایشی', 'down': 'کاهشی', 'flat': 'ثابت'},
+        'direction_word': {'bull': 'صعودی', 'bear': 'نزولی'},
+        'pattern_desc': {
+            'doji': 'خنثی', 'hammer': 'صعودی - برگشت از کف', 'shooting_star': 'نزولی - برگشت از سقف',
+            'bullish_engulfing': 'صعودی قوی', 'bearish_engulfing': 'نزولی قوی',
+            'morning_star': 'صعودی قوی از کف', 'evening_star': 'نزولی قوی از سقف',
+            'bullish_marubozu': 'صعودی قوی', 'bearish_marubozu': 'نزولی قوی',
+            'three_white_soldiers': 'صعودی قوی', 'three_black_crows': 'نزولی قوی',
+        },
+        'signal_primary': {'long_strong': "🟢 LONG قوی", 'long_weak': "🟡 LONG ضعیف",
+                           'short_strong': "🔴 SHORT قوی", 'short_weak': "🟡 SHORT ضعیف", 'neutral': "⚪ خنثی"},
+        'strength': {'strong': 'قوی', 'medium': 'متوسط'},
+        'next_level': {'support': 'حمایت بعدی', 'resistance': 'مقاومت بعدی'},
+        'ui': {
+            'analysis_title': 'تحلیل', 'timeframe': 'تایم‌فریم', 'price': 'قیمت', 'trend': 'روند',
+            'signal': 'سیگنال', 'suggestion': 'پیشنهاد', 'entry': 'ورود', 'rr': 'R/R',
+            'key_sr': 'حمایت و مقاومت کلیدی', 'resistances': 'مقاومت‌ها', 'supports': 'حمایت‌ها',
+            'scenarios': 'سناریوهای قیمتی', 'bear_scenario': 'سناریو نزولی', 'bull_scenario': 'سناریو صعودی',
+            'if_breaks': 'اگر `{price}` بشکند:', 'drop_estimate': 'تخمین ریزش', 'pump_estimate': 'تخمین رشد',
+            'fibonacci': 'فیبوناچی (نزدیک‌ترین)', 'indicators': 'اندیکاتورها', 'volume_section': 'حجم معاملات',
+            'patterns_section': 'الگوهای کندل', 'no_pattern': 'الگوی خاصی شناسایی نشد',
+            'disclaimer': 'این تحلیل توصیه مالی نیست.',
+            'last_candle_volume': 'حجم کندل آخر', 'avg_20_candle': 'میانگین ۲۰ کندل', 'of_avg': 'میانگین',
+            'volume_trend_5': 'روند حجم (۵ کندل اخیر)', 'volume_spike': 'اسپایک حجمی — حرکت اخیر با قدرت بالایی همراه بوده',
+            'volume_low': 'حجم پایین — این حرکت پشتوانه معاملاتی ضعیفی دارد',
+            'volume_confirms': 'حجم، حرکت {direction} کندل آخر را تایید می‌کند',
+            'volume_confirmed_tag': 'تایید حجمی',
+        },
+    },
+    'en': {
+        'tf_names': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min", "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
+        'trend': {'bullish': "Strong Bullish 📈", 'mild_bullish': "Mild Bullish 📈", 'neutral': "Neutral ↔️",
+                  'mild_bearish': "Mild Bearish 📉", 'bearish': "Strong Bearish 📉"},
+        'vol_trend': {'up': 'Rising', 'down': 'Falling', 'flat': 'Flat'},
+        'direction_word': {'bull': 'bullish', 'bear': 'bearish'},
+        'pattern_desc': {
+            'doji': 'Neutral', 'hammer': 'Bullish - reversal from the bottom', 'shooting_star': 'Bearish - reversal from the top',
+            'bullish_engulfing': 'Strong bullish', 'bearish_engulfing': 'Strong bearish',
+            'morning_star': 'Strong bullish reversal from the bottom', 'evening_star': 'Strong bearish reversal from the top',
+            'bullish_marubozu': 'Strong bullish', 'bearish_marubozu': 'Strong bearish',
+            'three_white_soldiers': 'Strong bullish', 'three_black_crows': 'Strong bearish',
+        },
+        'signal_primary': {'long_strong': "🟢 Strong LONG", 'long_weak': "🟡 Weak LONG",
+                           'short_strong': "🔴 Strong SHORT", 'short_weak': "🟡 Weak SHORT", 'neutral': "⚪ Neutral"},
+        'strength': {'strong': 'strong', 'medium': 'medium'},
+        'next_level': {'support': 'Next support', 'resistance': 'Next resistance'},
+        'ui': {
+            'analysis_title': 'Analysis', 'timeframe': 'Timeframe', 'price': 'Price', 'trend': 'Trend',
+            'signal': 'Signal', 'suggestion': 'suggestion', 'entry': 'Entry', 'rr': 'R/R',
+            'key_sr': 'Key Support & Resistance', 'resistances': 'Resistances', 'supports': 'Supports',
+            'scenarios': 'Price Scenarios', 'bear_scenario': 'Bearish Scenario', 'bull_scenario': 'Bullish Scenario',
+            'if_breaks': 'If `{price}` breaks:', 'drop_estimate': 'Estimated drop', 'pump_estimate': 'Estimated rise',
+            'fibonacci': 'Fibonacci (Nearest)', 'indicators': 'Indicators', 'volume_section': 'Volume',
+            'patterns_section': 'Candlestick Patterns', 'no_pattern': 'No specific pattern detected',
+            'disclaimer': 'This analysis is not financial advice.',
+            'last_candle_volume': 'Last candle volume', 'avg_20_candle': '20-candle average', 'of_avg': 'of average',
+            'volume_trend_5': 'Volume trend (last 5 candles)', 'volume_spike': 'Volume spike — recent move backed by strong participation',
+            'volume_low': 'Low volume — this move has weak trading support',
+            'volume_confirms': 'Volume confirms the {direction} move of the last candle',
+            'volume_confirmed_tag': 'volume-confirmed',
+        },
+    },
+    'ru': {
+        'tf_names': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин", "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
+        'trend': {'bullish': "Сильный рост 📈", 'mild_bullish': "Слабый рост 📈", 'neutral': "Нейтрально ↔️",
+                  'mild_bearish': "Слабое падение 📉", 'bearish': "Сильное падение 📉"},
+        'vol_trend': {'up': 'Растёт', 'down': 'Падает', 'flat': 'Стабильно'},
+        'direction_word': {'bull': 'бычье', 'bear': 'медвежье'},
+        'pattern_desc': {
+            'doji': 'Нейтрально', 'hammer': 'Бычий - разворот снизу', 'shooting_star': 'Медвежий - разворот сверху',
+            'bullish_engulfing': 'Сильный бычий', 'bearish_engulfing': 'Сильный медвежий',
+            'morning_star': 'Сильный бычий разворот снизу', 'evening_star': 'Сильный медвежий разворот сверху',
+            'bullish_marubozu': 'Сильный бычий', 'bearish_marubozu': 'Сильный медвежий',
+            'three_white_soldiers': 'Сильный бычий', 'three_black_crows': 'Сильный медвежий',
+        },
+        'signal_primary': {'long_strong': "🟢 Сильный LONG", 'long_weak': "🟡 Слабый LONG",
+                           'short_strong': "🔴 Сильный SHORT", 'short_weak': "🟡 Слабый SHORT", 'neutral': "⚪ Нейтрально"},
+        'strength': {'strong': 'сильный', 'medium': 'средний'},
+        'next_level': {'support': 'Следующая поддержка', 'resistance': 'Следующее сопротивление'},
+        'ui': {
+            'analysis_title': 'Анализ', 'timeframe': 'Таймфрейм', 'price': 'Цена', 'trend': 'Тренд',
+            'signal': 'Сигнал', 'suggestion': 'рекомендация', 'entry': 'Вход', 'rr': 'R/R',
+            'key_sr': 'Ключевые уровни', 'resistances': 'Сопротивления', 'supports': 'Поддержки',
+            'scenarios': 'Ценовые сценарии', 'bear_scenario': 'Медвежий сценарий', 'bull_scenario': 'Бычий сценарий',
+            'if_breaks': 'Если `{price}` будет пробит:', 'drop_estimate': 'Ожидаемое падение', 'pump_estimate': 'Ожидаемый рост',
+            'fibonacci': 'Фибоначчи (ближайшие)', 'indicators': 'Индикаторы', 'volume_section': 'Объём',
+            'patterns_section': 'Свечные модели', 'no_pattern': 'Особых моделей не обнаружено',
+            'disclaimer': 'Этот анализ не является финансовым советом.',
+            'last_candle_volume': 'Объём последней свечи', 'avg_20_candle': 'Средний за 20 свечей', 'of_avg': 'от среднего',
+            'volume_trend_5': 'Тренд объёма (5 свечей)', 'volume_spike': 'Всплеск объёма — движение подкреплено высокой активностью',
+            'volume_low': 'Низкий объём — движение слабо подкреплено торговлей',
+            'volume_confirms': 'Объём подтверждает {direction} движение последней свечи',
+            'volume_confirmed_tag': 'подтверждено объёмом',
+        },
+    },
+}
+
 
 class CryptoAnalyzer:
     def __init__(self):
@@ -63,9 +165,9 @@ class CryptoAnalyzer:
         recent_avg = volume.tail(5).mean()
         prior_avg = volume.tail(10).head(5).mean()
         vol_trend_pct = round((recent_avg - prior_avg) / prior_avg * 100, 1) if prior_avg > 0 else 0
-        if vol_trend_pct > 15: vol_trend = "افزایشی"
-        elif vol_trend_pct < -15: vol_trend = "کاهشی"
-        else: vol_trend = "ثابت"
+        if vol_trend_pct > 15: vol_trend = "up"
+        elif vol_trend_pct < -15: vol_trend = "down"
+        else: vol_trend = "flat"
 
         last_bullish = close.iloc[-1] > open_.iloc[-1]
         is_spike = vol_ratio >= 2.0
@@ -139,7 +241,8 @@ class CryptoAnalyzer:
         return key_supports, key_resistances
 
     # ── Price Targets ──
-    def calc_price_targets(self, df, supports, resistances, trend_type, fib_levels):
+    def calc_price_targets(self, df, supports, resistances, trend_type, fib_levels, lang='fa'):
+        next_lvl = LABELS.get(lang, LABELS['fa'])['next_level']
         price = df['close'].iloc[-1]
         atr = self.calc_atr(df).iloc[-1]
         volume = df['volume'].tail(20)
@@ -194,7 +297,7 @@ class CryptoAnalyzer:
                 'targets': [],
             }
             if next_supports:
-                scenario_bear['targets'].append({'price': next_supports[0], 'label': 'حمایت بعدی'})
+                scenario_bear['targets'].append({'price': next_supports[0], 'label': next_lvl['support']})
             if fib_below:
                 scenario_bear['targets'].append({'price': round(fib_below[0][1], 6), 'label': f'Fib {fib_below[0][0]}'})
             # Estimated drop
@@ -215,7 +318,7 @@ class CryptoAnalyzer:
                 'targets': [],
             }
             if next_resistances:
-                scenario_bull['targets'].append({'price': next_resistances[0], 'label': 'مقاومت بعدی'})
+                scenario_bull['targets'].append({'price': next_resistances[0], 'label': next_lvl['resistance']})
             if fib_above:
                 scenario_bull['targets'].append({'price': round(fib_above[0][1], 6), 'label': f'Fib {fib_above[0][0]}'})
             if next_resistances:
@@ -226,7 +329,8 @@ class CryptoAnalyzer:
         return targets
 
     # ── Candlestick Patterns ──
-    def detect_patterns(self, df):
+    def detect_patterns(self, df, lang='fa'):
+        pd_labels = LABELS.get(lang, LABELS['fa'])['pattern_desc']
         patterns = []
         c = df.tail(5).copy().reset_index(drop=True)
         if len(c) < 3:
@@ -240,46 +344,47 @@ class CryptoAnalyzer:
         last = len(c) - 1
 
         if body(last) <= 0.1 * (c['high'][last] - c['low'][last]):
-            patterns.append(("Doji", "⚪", "خنثی"))
+            patterns.append(("Doji", "⚪", pd_labels['doji']))
         if lower_shadow(last) >= 2*body(last) and upper_shadow(last) <= 0.3*body(last) and is_bull(last):
-            patterns.append(("Hammer", "🔨", "صعودی - برگشت از کف"))
+            patterns.append(("Hammer", "🔨", pd_labels['hammer']))
         if upper_shadow(last) >= 2*body(last) and lower_shadow(last) <= 0.3*body(last) and is_bear(last):
-            patterns.append(("Shooting Star", "⭐", "نزولی - برگشت از سقف"))
+            patterns.append(("Shooting Star", "⭐", pd_labels['shooting_star']))
         if last >= 1:
             if is_bull(last) and is_bear(last-1) and c['close'][last] > c['open'][last-1] and c['open'][last] < c['close'][last-1]:
-                patterns.append(("Bullish Engulfing", "📈", "صعودی قوی"))
+                patterns.append(("Bullish Engulfing", "📈", pd_labels['bullish_engulfing']))
             elif is_bear(last) and is_bull(last-1) and c['close'][last] < c['open'][last-1] and c['open'][last] > c['close'][last-1]:
-                patterns.append(("Bearish Engulfing", "📉", "نزولی قوی"))
+                patterns.append(("Bearish Engulfing", "📉", pd_labels['bearish_engulfing']))
         if last >= 2:
             if is_bear(last-2) and body(last-1) < 0.3*body(last-2) and is_bull(last) and c['close'][last] > (c['open'][last-2]+c['close'][last-2])/2:
-                patterns.append(("Morning Star", "🌅", "صعودی قوی از کف"))
+                patterns.append(("Morning Star", "🌅", pd_labels['morning_star']))
             if is_bull(last-2) and body(last-1) < 0.3*body(last-2) and is_bear(last) and c['close'][last] < (c['open'][last-2]+c['close'][last-2])/2:
-                patterns.append(("Evening Star", "🌆", "نزولی قوی از سقف"))
+                patterns.append(("Evening Star", "🌆", pd_labels['evening_star']))
         if is_bull(last) and upper_shadow(last) < 0.05*body(last) and lower_shadow(last) < 0.05*body(last) and body(last) > 0.7*(c['high'][last]-c['low'][last]):
-            patterns.append(("Bullish Marubozu", "💚", "صعودی قوی"))
+            patterns.append(("Bullish Marubozu", "💚", pd_labels['bullish_marubozu']))
         if is_bear(last) and upper_shadow(last) < 0.05*body(last) and lower_shadow(last) < 0.05*body(last) and body(last) > 0.7*(c['high'][last]-c['low'][last]):
-            patterns.append(("Bearish Marubozu", "❤️", "نزولی قوی"))
+            patterns.append(("Bearish Marubozu", "❤️", pd_labels['bearish_marubozu']))
         if last >= 2:
             if all(is_bull(i) for i in [last, last-1, last-2]) and c['close'][last] > c['close'][last-1] > c['close'][last-2]:
-                patterns.append(("Three White Soldiers", "🪖", "صعودی قوی"))
+                patterns.append(("Three White Soldiers", "🪖", pd_labels['three_white_soldiers']))
             if all(is_bear(i) for i in [last, last-1, last-2]) and c['close'][last] < c['close'][last-1] < c['close'][last-2]:
-                patterns.append(("Three Black Crows", "🐦‍⬛", "نزولی قوی"))
+                patterns.append(("Three Black Crows", "🐦‍⬛", pd_labels['three_black_crows']))
 
         return patterns
 
     # ── Trend ──
-    def determine_trend(self, df):
+    def determine_trend(self, df, lang='fa'):
+        trend_labels = LABELS.get(lang, LABELS['fa'])['trend']
         close = df['close']
         ema20 = self.calc_ema(close, 20).iloc[-1]
         ema50 = self.calc_ema(close, 50).iloc[-1]
         ema200 = self.calc_ema(close, 200).iloc[-1]
         price = close.iloc[-1]
         count = sum([price > ema20, price > ema50, price > ema200, ema20 > ema50, ema50 > ema200])
-        if count >= 4: return "صعودی قوی 📈", "bullish"
-        elif count == 3: return "صعودی ضعیف 📈", "mild_bullish"
-        elif count == 2: return "خنثی ↔️", "neutral"
-        elif count == 1: return "نزولی ضعیف 📉", "mild_bearish"
-        else: return "نزولی قوی 📉", "bearish"
+        if count >= 4: return trend_labels['bullish'], "bullish"
+        elif count == 3: return trend_labels['mild_bullish'], "mild_bullish"
+        elif count == 2: return trend_labels['neutral'], "neutral"
+        elif count == 1: return trend_labels['mild_bearish'], "mild_bearish"
+        else: return trend_labels['bearish'], "bearish"
 
     # ── Signal Score ──
     def compute_signal(self, df, patterns, trend_type):
@@ -329,17 +434,19 @@ class CryptoAnalyzer:
         }
 
     # ── MAIN ANALYZE ──
-    def analyze(self, symbol, timeframe):
+    def analyze(self, symbol, timeframe, lang='fa'):
+        L = LABELS.get(lang, LABELS['fa'])
+        ui = L['ui']
         df = self.fetch_ohlcv(symbol, timeframe, limit=300)
         price = df['close'].iloc[-1]
 
-        patterns = self.detect_patterns(df)
-        trend_label, trend_type = self.determine_trend(df)
+        patterns = self.detect_patterns(df, lang)
+        trend_label, trend_type = self.determine_trend(df, lang)
         fib_levels, swing_high, swing_low = self.calc_fibonacci(df)
         supports, resistances = self.find_support_resistance(df)
         key_supports, key_resistances = self.find_key_levels(df)
         scores = self.compute_signal(df, patterns, trend_type)
-        targets = self.calc_price_targets(df, supports, resistances, trend_type, fib_levels)
+        targets = self.calc_price_targets(df, supports, resistances, trend_type, fib_levels, lang)
         atr = self.calc_atr(df).iloc[-1]
 
         long_score = scores['long_score']
@@ -348,11 +455,12 @@ class CryptoAnalyzer:
         long_pct = round(long_score/total*100) if total > 0 else 50
         short_pct = 100 - long_pct
 
-        if long_score > short_score + 3: primary, emoji = "🟢 LONG قوی", "🚀"
-        elif long_score > short_score: primary, emoji = "🟡 LONG ضعیف", "📈"
-        elif short_score > long_score + 3: primary, emoji = "🔴 SHORT قوی", "📉"
-        elif short_score > long_score: primary, emoji = "🟡 SHORT ضعیف", "⬇️"
-        else: primary, emoji = "⚪ خنثی", "↔️"
+        sp = L['signal_primary']
+        if long_score > short_score + 3: primary, emoji = sp['long_strong'], "🚀"
+        elif long_score > short_score: primary, emoji = sp['long_weak'], "📈"
+        elif short_score > long_score + 3: primary, emoji = sp['short_strong'], "📉"
+        elif short_score > long_score: primary, emoji = sp['short_weak'], "⬇️"
+        else: primary, emoji = sp['neutral'], "↔️"
 
         direction = "LONG" if long_score >= short_score else "SHORT"
         if direction == "LONG":
@@ -370,71 +478,70 @@ class CryptoAnalyzer:
 
         rr = round(abs(tp2 - entry) / abs(entry - sl), 2) if entry != sl else "N/A"
 
-        tf_names = {"1m":"1 دقیقه","5m":"5 دقیقه","15m":"15 دقیقه","1h":"1 ساعت","4h":"4 ساعت","1d":"روزانه","1w":"هفتگی"}
-
         lines = [
             f"{'═'*28}",
-            f"  {emoji} تحلیل {symbol}USDT  {emoji}",
-            f"  تایم‌فریم: {tf_names.get(timeframe, timeframe)}",
+            f"  {emoji} {ui['analysis_title']} {symbol}USDT  {emoji}",
+            f"  {ui['timeframe']}: {L['tf_names'].get(timeframe, timeframe)}",
             f"{'═'*28}",
             f"",
-            f"💰 قیمت: `{price:,.6f}` USDT",
-            f"📊 روند: {trend_label}",
+            f"💰 {ui['price']}: `{price:,.6f}` USDT",
+            f"📊 {ui['trend']}: {trend_label}",
             f"",
-            f"📡 سیگنال: *{primary}*",
+            f"📡 {ui['signal']}: *{primary}*",
             f"  📈 LONG: {long_pct}%  |  📉 SHORT: {short_pct}%",
             f"",
-            f"🎯 *پیشنهاد {direction}:*",
-            f"  ✅ ورود:  `{entry:,.6f}`",
+            f"🎯 *{direction} {ui['suggestion']}:*",
+            f"  ✅ {ui['entry']}:  `{entry:,.6f}`",
             f"  🎯 TP1:  `{tp1:,.6f}`",
             f"  🎯 TP2:  `{tp2:,.6f}`",
             f"  🎯 TP3:  `{tp3:,.6f}`",
             f"  🛑 SL:   `{sl:,.6f}`",
-            f"  ⚖️  R/R:  {rr}",
+            f"  ⚖️  {ui['rr']}:  {rr}",
             f"",
         ]
 
         # ── Support / Resistance with Scenarios ──
-        lines += [f"{'─'*28}", f"🧱 *حمایت و مقاومت کلیدی:*", f""]
+        lines += [f"{'─'*28}", f"🧱 *{ui['key_sr']}:*", f""]
 
         if resistances:
-            lines.append("  🔴 *مقاومت‌ها:*")
+            lines.append(f"  🔴 *{ui['resistances']}:*")
             for i, r in enumerate(resistances[:3]):
                 dist = round((r - price) / price * 100, 2)
-                strength = "قوی" if i == 0 else "متوسط"
+                strength = L['strength']['strong'] if i == 0 else L['strength']['medium']
                 lines.append(f"    R{i+1}: `{r:,.6f}` (+{dist}%) — {strength}")
 
         if supports:
             lines.append("")
-            lines.append("  🟢 *حمایت‌ها:*")
+            lines.append(f"  🟢 *{ui['supports']}:*")
             for i, s in enumerate(supports[:3]):
                 dist = round((price - s) / price * 100, 2)
-                strength = "قوی" if i == 0 else "متوسط"
+                strength = L['strength']['strong'] if i == 0 else L['strength']['medium']
                 lines.append(f"    S{i+1}: `{s:,.6f}` (-{dist}%) — {strength}")
 
         # ── Breakout Scenarios ──
-        lines += [f"", f"{'─'*28}", f"🔮 *سناریوهای قیمتی:*", f""]
+        lines += [f"", f"{'─'*28}", f"🔮 *{ui['scenarios']}:*", f""]
 
         for stype, scenario in targets['scenarios']:
+            trigger_str = f"{scenario['trigger']:,.6f}"
             if stype == 'bear':
-                lines.append(f"  📉 *سناریو نزولی:*")
-                lines.append(f"  اگر `{scenario['trigger']:,.6f}` بشکند:")
+                lines.append(f"  📉 *{ui['bear_scenario']}:*")
+                lines.append(f"  {ui['if_breaks'].format(price=trigger_str)}")
                 for tgt in scenario['targets']:
                     lines.append(f"    ↘️ {tgt['label']}: `{tgt['price']:,.6f}`")
                 if 'drop_estimate' in scenario:
-                    lines.append(f"    📏 تخمین ریزش: ~{scenario['drop_estimate']}%")
+                    lines.append(f"    📏 {ui['drop_estimate']}: ~{scenario['drop_estimate']}%")
             else:
                 lines.append(f"")
-                lines.append(f"  📈 *سناریو صعودی:*")
-                lines.append(f"  اگر `{scenario['trigger']:,.6f}` بشکند:")
+                lines.append(f"  📈 *{ui['bull_scenario']}:*")
+                lines.append(f"  {ui['if_breaks'].format(price=trigger_str)}")
                 for tgt in scenario['targets']:
                     lines.append(f"    ↗️ {tgt['label']}: `{tgt['price']:,.6f}`")
                 if 'pump_estimate' in scenario:
-                    lines.append(f"    📏 تخمین رشد: ~{scenario['pump_estimate']}%")
+                    lines.append(f"    📏 {ui['pump_estimate']}: ~{scenario['pump_estimate']}%")
 
         # ── Fibonacci ──
         nearest_fibs = sorted(fib_levels.items(), key=lambda x: abs(x[1]-price))[:4]
-        lines += [f"", f"{'─'*28}", f"🌀 *فیبوناچی (نزدیک‌ترین):*"]
+        lines += [f"", f"{'─'*28}", f"🌀 *{ui['fibonacci']}:*"]
         lines.append(f"  📍 High: `{swing_high:,.6f}` | Low: `{swing_low:,.6f}`")
         for lvl_name, lvl_price in nearest_fibs:
             dist = round((lvl_price - price) / price * 100, 2)
@@ -445,7 +552,7 @@ class CryptoAnalyzer:
         rsi_emoji = "🔴" if scores['rsi'] > 70 else "🟢" if scores['rsi'] < 30 else "🟡"
         macd_emoji = "🟢" if scores['histogram'] > 0 else "🔴"
         lines += [
-            f"", f"{'─'*28}", f"📊 *اندیکاتورها:*",
+            f"", f"{'─'*28}", f"📊 *{ui['indicators']}:*",
             f"  {rsi_emoji} RSI(14): `{scores['rsi']:.1f}`",
             f"  {macd_emoji} MACD: `{scores['macd']:.6f}`",
             f"  📶 Histogram: `{scores['histogram']:.6f}`",
@@ -456,36 +563,37 @@ class CryptoAnalyzer:
 
         # ── Volume ──
         vol = scores['volume']
+        vol_trend_text = L['vol_trend'].get(vol['vol_trend'], vol['vol_trend'])
         vol_emoji = "🔥" if vol['is_spike'] else "🟢" if vol['is_high'] else "🔴" if vol['is_low'] else "🟡"
-        trend_emoji = "📈" if vol['vol_trend'] == "افزایشی" else "📉" if vol['vol_trend'] == "کاهشی" else "➡️"
-        lines += [f"", f"{'─'*28}", f"📶 *حجم معاملات:*"]
-        lines.append(f"  {vol_emoji} حجم کندل آخر: `{vol['current_volume']:,.2f}` ({vol['vol_ratio']}x میانگین)")
-        lines.append(f"  📊 میانگین ۲۰ کندل: `{vol['avg_volume']:,.2f}`")
-        lines.append(f"  {trend_emoji} روند حجم (۵ کندل اخیر): {vol['vol_trend']} ({vol['vol_trend_pct']:+.1f}%)")
+        trend_emoji = "📈" if vol['vol_trend'] == "up" else "📉" if vol['vol_trend'] == "down" else "➡️"
+        lines += [f"", f"{'─'*28}", f"📶 *{ui['volume_section']}:*"]
+        lines.append(f"  {vol_emoji} {ui['last_candle_volume']}: `{vol['current_volume']:,.2f}` ({vol['vol_ratio']}x {ui['of_avg']})")
+        lines.append(f"  📊 {ui['avg_20_candle']}: `{vol['avg_volume']:,.2f}`")
+        lines.append(f"  {trend_emoji} {ui['volume_trend_5']}: {vol_trend_text} ({vol['vol_trend_pct']:+.1f}%)")
         if vol['is_spike']:
-            lines.append(f"  🔥 اسپایک حجمی — حرکت اخیر با قدرت بالایی همراه بوده")
+            lines.append(f"  🔥 {ui['volume_spike']}")
         elif vol['is_low']:
-            lines.append(f"  ⚠️ حجم پایین — این حرکت پشتوانه معاملاتی ضعیفی دارد")
+            lines.append(f"  ⚠️ {ui['volume_low']}")
         if vol['confirms_move']:
-            direction_txt = "صعودی" if vol['last_bullish'] else "نزولی"
-            lines.append(f"  ✅ حجم، حرکت {direction_txt} کندل آخر را تایید می‌کند")
+            direction_txt = L['direction_word']['bull'] if vol['last_bullish'] else L['direction_word']['bear']
+            lines.append(f"  ✅ {ui['volume_confirms'].format(direction=direction_txt)}")
 
         # ── Candlestick Patterns ──
-        lines += [f"", f"{'─'*28}", f"🕯 *الگوهای کندل:*"]
+        lines += [f"", f"{'─'*28}", f"🕯 *{ui['patterns_section']}:*"]
         bull_p = ["Hammer","Bullish Engulfing","Morning Star","Bullish Marubozu","Three White Soldiers"]
         bear_p = ["Shooting Star","Bearish Engulfing","Evening Star","Bearish Marubozu","Three Black Crows"]
         if patterns:
             for name, pat_emoji, desc in patterns:
                 confirm_tag = ""
                 if vol['is_high'] and ((name in bull_p and vol['last_bullish']) or (name in bear_p and not vol['last_bullish'])):
-                    confirm_tag = "  ✅ تایید حجمی"
+                    confirm_tag = f"  ✅ {ui['volume_confirmed_tag']}"
                 lines.append(f"  {pat_emoji} {name}: {desc}{confirm_tag}")
         else:
-            lines.append("  ⚪ الگوی خاصی شناسایی نشد")
+            lines.append(f"  ⚪ {ui['no_pattern']}")
 
         lines += [
             f"", f"{'─'*28}",
-            f"⚠️ این تحلیل توصیه مالی نیست.",
+            f"⚠️ {ui['disclaimer']}",
             f"{'═'*28}",
             f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC",
         ]
