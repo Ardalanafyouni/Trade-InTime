@@ -20,7 +20,6 @@ from new_coins import generate_new_coins_message
 from airdrops import generate_airdrops_message
 from ai_analysis import generate_ai_analysis
 from users import track_user, generate_users_report
-from wallet import is_valid_evm_address, fetch_full_portfolio, format_portfolio_message, NO_KEY_ERROR as WALLET_NO_KEY_ERROR, INVALID_ADDRESS as WALLET_INVALID_ADDRESS
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -30,13 +29,12 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
-WAITING_WALLET_ADDRESS = 30
 (J_SYMBOL, J_DIRECTION, J_ENTRY, J_SL, J_TP, J_SIZE, J_NOTE,
  J_CLOSE_ID, J_CLOSE_EXIT, J_CLOSE_PNL, J_DELETE_ID) = range(10, 21)
 
 TEXTS = {
     'fa': {
-        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/airdrops - ایردراپ‌های معتبر\n/wallet - پورتفولیوی کیف پول\n/terms - اصطلاحات\n/lang - زبان",
+        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/airdrops - ایردراپ‌های معتبر\n/terms - اصطلاحات\n/lang - زبان",
         'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
         'choose_tf': "تایم‌فریم را انتخاب کنید:",
         'analyzing': "⏳ در حال تحلیل و رسم چارت",
@@ -48,14 +46,11 @@ TEXTS = {
         'ai_button': "🤖 تحلیل هوش مصنوعی (اختصاصی)",
         'ai_loading': "⏳ در حال ترکیب دیتای تکنیکال با اخبار بروز و تولید تحلیل...",
         'ai_limit': "⛔️ شما به سقف {limit} تحلیل هوش مصنوعی در روز رسیده‌اید. فردا دوباره امتحان کنید.",
-        'wallet_ask': "👛 آدرس کیف پول EVM خودتون رو بفرستید (مثل آدرس اتریوم/BSC/Polygon تو MetaMask، با 0x شروع می‌شه).\n\nفقط آدرس عمومی لازمه — هیچ‌وقت سیدفریز یا کلید خصوصی نفرستید، ربات بهش نیازی نداره.",
-        'wallet_loading': "⏳ در حال بررسی موجودی کیف پول رو چند شبکه...",
-        'wallet_saved_hint': "\n\nاین آدرس ذخیره شد؛ دفعه بعد کافیه فقط /wallet بزنید.",
         'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه",
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
     },
     'en': {
-        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/wallet - Wallet Portfolio\n/terms - Terms\n/lang - Language",
+        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/terms - Terms\n/lang - Language",
         'enter_symbol': "🪙 Enter coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Select timeframe:",
         'analyzing': "⏳ Analyzing and generating chart",
@@ -67,14 +62,11 @@ TEXTS = {
         'ai_button': "🤖 AI Analysis (Custom)",
         'ai_loading': "⏳ Combining technical data with fresh news and generating analysis...",
         'ai_limit': "⛔️ You've reached the daily limit of {limit} AI analyses. Try again tomorrow.",
-        'wallet_ask': "👛 Send your EVM wallet address (Ethereum/BSC/Polygon-style, from MetaMask, starts with 0x).\n\nOnly the public address is needed — never send a seed phrase or private key, the bot doesn't need it.",
-        'wallet_loading': "⏳ Checking wallet balance across chains...",
-        'wallet_saved_hint': "\n\nAddress saved; next time just send /wallet.",
         'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min",
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
     },
     'ru': {
-        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/wallet - Портфель кошелька\n/terms - Термины\n/lang - Язык",
+        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/terms - Термины\n/lang - Язык",
         'enter_symbol': "🪙 Введите символ:\nПример: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Выберите таймфрейм:",
         'analyzing': "⏳ Анализирую и строю график",
@@ -86,9 +78,6 @@ TEXTS = {
         'ai_button': "🤖 ИИ-анализ (персональный)",
         'ai_loading': "⏳ Объединяю технические данные со свежими новостями и генерирую анализ...",
         'ai_limit': "⛔️ Вы достигли дневного лимита {limit} ИИ-анализов. Попробуйте завтра.",
-        'wallet_ask': "👛 Отправьте адрес вашего EVM-кошелька (в стиле Ethereum/BSC/Polygon, из MetaMask, начинается с 0x).\n\nНужен только публичный адрес — никогда не отправляйте seed-фразу или приватный ключ, боту это не нужно.",
-        'wallet_loading': "⏳ Проверяю баланс кошелька в разных сетях...",
-        'wallet_saved_hint': "\n\nАдрес сохранён; в следующий раз просто отправьте /wallet.",
         'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин",
                        "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
     }
@@ -121,10 +110,6 @@ ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.str
 
 def is_admin(uid):
     return uid in ADMIN_IDS
-
-# Saved wallet addresses (in-memory, per user — resets on redeploy like the
-# other in-memory state in this bot)
-wallet_addresses = {}
 
 def get_lang(uid): return user_langs.get(uid, 'fa')
 def t(uid, key): return TEXTS[get_lang(uid)][key]
@@ -590,53 +575,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(generate_users_report(lang))
 
 
-async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    args = context.args
-
-    if args:
-        address = args[0].strip()
-        return await _run_wallet_lookup(update, context, uid, address)
-
-    saved = wallet_addresses.get(uid)
-    if saved:
-        return await _run_wallet_lookup(update, context, uid, saved)
-
-    await update.message.reply_text(t(uid, 'wallet_ask'))
-    return WAITING_WALLET_ADDRESS
-
-
-async def receive_wallet_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    address = update.message.text.strip()
-    return await _run_wallet_lookup(update, context, uid, address, save=True)
-
-
-async def _run_wallet_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE, uid, address, save=False):
-    lang = get_lang(uid)
-
-    if not is_valid_evm_address(address):
-        await update.message.reply_text(WALLET_INVALID_ADDRESS.get(lang, WALLET_INVALID_ADDRESS['en']))
-        return WAITING_WALLET_ADDRESS if not save else ConversationHandler.END
-
-    msg = await update.message.reply_text(t(uid, 'wallet_loading'))
-    try:
-        tokens, total_usd, failed_chains = fetch_full_portfolio(address)
-        wallet_addresses[uid] = address
-        result = format_portfolio_message(address, tokens, total_usd, failed_chains, lang)
-        if save:
-            result += t(uid, 'wallet_saved_hint')
-        await msg.delete()
-        await update.message.reply_text(result)
-    except RuntimeError:
-        await msg.delete()
-        await update.message.reply_text(WALLET_NO_KEY_ERROR.get(lang, WALLET_NO_KEY_ERROR['en']))
-    except Exception as e:
-        logger.error(f"Wallet lookup error: {e}")
-        await msg.edit_text(f"{t(uid, 'error')} {str(e)}")
-    return ConversationHandler.END
-
-
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     keyboard = [[InlineKeyboardButton("🇮🇷 فارسی", callback_data="lang_fa"), InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"), InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")]]
@@ -818,14 +756,6 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    wallet_conv = ConversationHandler(
-        entry_points=[CommandHandler("wallet", wallet_command)],
-        states={
-            WAITING_WALLET_ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wallet_address)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("whoami", whoami_command))
@@ -845,7 +775,6 @@ def main():
     app.add_handler(CallbackQueryHandler(track_activity), group=1)
     app.add_handler(analyze_conv)
     app.add_handler(journal_conv)
-    app.add_handler(wallet_conv)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     logger.info("Bot is running...")
