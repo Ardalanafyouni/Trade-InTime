@@ -2,8 +2,6 @@ import logging
 import feedparser
 from datetime import datetime, timedelta
 
-from news import translate_text  # reuse the existing translation helper
-
 logger = logging.getLogger(__name__)
 
 # AirdropAlert has been curating/verifying airdrop listings since 2017 and
@@ -115,7 +113,7 @@ LABELS = {
 
 
 def _format_item(item, lang, labels):
-    title = translate_text(item['title'], lang) if lang != 'en' else item['title']
+    title = item['title']  # never translated — project/campaign names should stay as-is
     age_text = labels['today'] if item['days_ago'] == 0 else f"{item['days_ago']} {labels['days_ago']}"
     prefix = "🔥 " if item['is_new_season'] else ""
     lines = [
@@ -165,3 +163,4 @@ def generate_airdrops_message(lang='fa'):
     ]
 
     return "\n".join(lines)
+
