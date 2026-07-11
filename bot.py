@@ -632,17 +632,18 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = query.from_user.id
     timeframe = query.data
     symbol = context.user_data.get('symbol', 'BTC')
+    lang = get_lang(uid)
     tfs = t(uid, 'timeframes')
     await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT ...")
     try:
         df = analyzer.fetch_ohlcv(symbol, timeframe, limit=300)
-        patterns = analyzer.detect_patterns(df)
-        trend_label, trend_type = analyzer.determine_trend(df)
+        patterns = analyzer.detect_patterns(df, lang)
+        trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
         supports, resistances = analyzer.find_support_resistance(df)
         scores = analyzer.compute_signal(df, patterns, trend_type)
         chart_buf = generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, scores)
-        text_result = analyzer.analyze(symbol, timeframe)
+        text_result = analyzer.analyze(symbol, timeframe, lang)
         ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
         await query.message.reply_photo(photo=chart_buf, caption=f"📊 {symbol}USDT | {tfs.get(timeframe)}")
         await query.message.reply_text(text_result, parse_mode="Markdown", reply_markup=ai_keyboard)
@@ -670,8 +671,8 @@ async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     msg = await query.message.reply_text(t(uid, 'ai_loading'))
     try:
         df = analyzer.fetch_ohlcv(symbol, timeframe, limit=300)
-        patterns = analyzer.detect_patterns(df)
-        trend_label, trend_type = analyzer.determine_trend(df)
+        patterns = analyzer.detect_patterns(df, lang)
+        trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
         supports, resistances = analyzer.find_support_resistance(df)
         scores = analyzer.compute_signal(df, patterns, trend_type)
