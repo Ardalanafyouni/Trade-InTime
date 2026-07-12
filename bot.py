@@ -173,7 +173,6 @@ TEXTS = {
 
 analyzer = CryptoAnalyzer()
 user_langs = {}
-subscribed_users = set()
 news_subscribers = set()
 newcoins_subscribers = set()
 seen_news_links = set()
@@ -275,7 +274,6 @@ def export_to_excel(uid, lang='fa'):
 # ── Watchlist ──
 async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    subscribed_users.add(uid)
     lang = get_lang(uid)
     msg = await update.message.reply_text(t(uid, 'watchlist_loading'))
     try:
@@ -435,18 +433,6 @@ async def watchlist_quick_analyze(update: Update, context: ContextTypes.DEFAULT_
     ]
     await query.message.reply_text(f"✅ {symbol}USDT\n\n{t(uid, 'choose_tf')}", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_TIMEFRAME
-
-async def send_weekly_watchlist(context):
-    cache = {}
-    for uid in subscribed_users:
-        try:
-            lang = get_lang(uid)
-            if lang not in cache:
-                cache[lang] = await run_blocking(generate_watchlist, lang, timeout=60)
-            result_text, _ = cache[lang]
-            await context.bot.send_message(chat_id=uid, text=result_text, parse_mode="Markdown")
-        except Exception as e:
-            logger.error(f"Weekly watchlist error for user {uid}: {e}")
 
 
 # ── Journal ──
@@ -652,7 +638,6 @@ async def j_close_pnl(update, context):
 # ── Analyze handlers ──
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    subscribed_users.add(uid)
     user = update.effective_user
     track_user(uid, user.username, user.first_name, started=True)
     await update.message.reply_text(t(uid, 'welcome'), parse_mode="Markdown")
@@ -818,13 +803,6 @@ def main():
         raise ValueError("TELEGRAM_BOT_TOKEN not set!")
 
     app = ApplicationBuilder().token(token).build()
-
-    app.job_queue.run_daily(
-        send_weekly_watchlist,
-        time=dtime(8, 0, 0),
-        days=(0,),
-        name="weekly_watchlist"
-    )
 
     app.job_queue.run_daily(
         send_daily_newcoins,
