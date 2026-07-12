@@ -1,4 +1,6 @@
+import os
 import ccxt
+import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -110,15 +112,128 @@ LABELS = {
 
 
 class CryptoAnalyzer:
+    COINGECKO_BASE = "https://api.coingecko.com/api/v3"
+    CMC_BASE = "https://pro-api.coinmarketcap.com/v2"
+    CMC_API_KEY = os.environ.get("CMC_API_KEY")  # only useful on CMC's paid Startup+ tier — see note below
+
     def __init__(self):
         self.exchange = ccxt.kucoin({'enableRateLimit': True, 'timeout': 15000})
+        self._cg_id_cache = {}
+        self.last_source = None  # 'kucoin' / 'coingecko' / 'coinmarketcap' — set by the most recent fetch_ohlcv call
+        self.last_source_note = None  # human-readable caveat about the active source, if any
 
     def fetch_ohlcv(self, symbol, timeframe, limit=300):
+        """Tries KuCoin first (best data quality, real volume). Falls back to
+        CoinGecko, then CoinMarketCap, only if a coin isn't listed on the
+        previous source(s)."""
         pair = f"{symbol}/USDT"
-        ohlcv = self.exchange.fetch_ohlcv(pair, timeframe, limit=limit)
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        try:
+            ohlcv = self.exchange.fetch_ohlcv(pair, timeframe, limit=limit)
+            if not ohlcv:
+                raise ValueError("KuCoin returned no candles")
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            self.last_source = 'kucoin'
+            self.last_source_note = None
+            return df
+        except Exception as e:
+            logger.warning(f"KuCoin fetch failed for {symbol} ({e}); trying CoinGecko")
+
+        try:
+            df, note = self._fetch_ohlcv_coingecko(symbol, timeframe, limit)
+            self.last_source = 'coingecko'
+            self.last_source_note = note
+            return df
+        except Exception as e:
+            logger.warning(f"CoinGecko fetch failed for {symbol} ({e}); trying CoinMarketCap")
+
+        if self.CMC_API_KEY:
+            try:
+                df, note = self._fetch_ohlcv_cmc(symbol, timeframe, limit)
+                self.last_source = 'coinmarketcap'
+                self.last_source_note = note
+                return df
+            except Exception as e:
+                logger.warning(f"CoinMarketCap fetch failed for {symbol}: {e}")
+
+        raise ValueError(f"{symbol} was not found on KuCoin or CoinGecko" +
+                          (", or CoinMarketCap" if self.CMC_API_KEY else ""))
+
+    def _coingecko_lookup_id(self, symbol):
+        symbol_u = symbol.upper()
+        if symbol_u in self._cg_id_cache:
+            return self._cg_id_cache[symbol_u]
+        try:
+            resp = requests.get(f"{self.COINGECKO_BASE}/search", params={"query": symbol_u}, timeout=10)
+            resp.raise_for_status()
+            for coin in resp.json().get('coins', []):
+                if coin.get('symbol', '').upper() == symbol_u:
+                    self._cg_id_cache[symbol_u] = coin['id']
+                    return coin['id']
+        except Exception as e:
+            logger.error(f"CoinGecko id lookup failed for {symbol}: {e}")
+        return None
+
+    def _fetch_ohlcv_coingecko(self, symbol, timeframe, limit=300):
+        """CoinGecko's free /ohlc endpoint has two hard limits we can't work
+        around on the free tier: no per-candle volume, and fixed granularity
+        tied to the 'days' window (not a free choice of timeframe). We pick
+        the closest available granularity and mark volume as unavailable
+        rather than showing fabricated numbers."""
+        coin_id = self._coingecko_lookup_id(symbol)
+        if not coin_id:
+            raise ValueError(f"{symbol} not found on KuCoin or CoinGecko")
+
+        days_map = {"1m": 1, "5m": 1, "15m": 1, "1h": 7, "4h": 30, "1d": 90, "1w": 365}
+        granularity_map = {"1m": "~30m", "5m": "~30m", "15m": "~30m", "1h": "~4h",
+                            "4h": "~4h", "1d": "~4d", "1w": "~4d"}
+        days = days_map.get(timeframe, 30)
+
+        resp = requests.get(f"{self.COINGECKO_BASE}/coins/{coin_id}/ohlc",
+                             params={"vs_currency": "usd", "days": days}, timeout=15)
+        resp.raise_for_status()
+        raw = resp.json()
+        if not raw:
+            raise ValueError(f"CoinGecko has no OHLC data for {symbol}")
+
+        df = pd.DataFrame(raw, columns=['timestamp', 'open', 'high', 'low', 'close'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        return df
+        df['volume'] = 0.0  # not available on CoinGecko's free OHLC endpoint
+        df = df.tail(limit).reset_index(drop=True)
+        note = f"CoinGecko ({granularity_map.get(timeframe, '?')} candles, volume unavailable — {symbol} isn't on KuCoin)"
+        return df, note
+
+    def _fetch_ohlcv_cmc(self, symbol, timeframe, limit=300):
+        """CoinMarketCap's free 'Basic' tier does NOT include historical
+        OHLCV at all — /cryptocurrency/ohlcv/historical requires their paid
+        Startup tier or above. This only does anything if CMC_API_KEY is set
+        to a key from a paid plan; otherwise fetch_ohlcv skips this source
+        entirely."""
+        period_map = {"1m": "hourly", "5m": "hourly", "15m": "hourly", "1h": "hourly",
+                      "4h": "hourly", "1d": "daily", "1w": "daily"}
+        time_period = period_map.get(timeframe, "daily")
+        headers = {"X-CMC_PRO_API_KEY": self.CMC_API_KEY, "Accept": "application/json"}
+        params = {"symbol": symbol.upper(), "time_period": time_period,
+                  "count": min(limit, 300), "convert": "USD"}
+        resp = requests.get(f"{self.CMC_BASE}/cryptocurrency/ohlcv/historical",
+                             headers=headers, params=params, timeout=15)
+        resp.raise_for_status()
+        quotes = (resp.json().get('data') or {}).get('quotes', [])
+        if not quotes:
+            raise ValueError(f"CoinMarketCap has no OHLCV data for {symbol}")
+
+        rows = []
+        for q in quotes:
+            usd = q.get('quote', {}).get('USD', {})
+            rows.append({
+                'timestamp': pd.to_datetime(q.get('time_close') or q.get('time_open')),
+                'open': usd.get('open'), 'high': usd.get('high'),
+                'low': usd.get('low'), 'close': usd.get('close'),
+                'volume': usd.get('volume', 0),
+            })
+        df = pd.DataFrame(rows).sort_values('timestamp').tail(limit).reset_index(drop=True)
+        note = f"CoinMarketCap ({time_period} candles, approximate for {timeframe} — {symbol} isn't on KuCoin or CoinGecko)"
+        return df, note
 
     # ── Indicators ──
     def calc_rsi(self, close, period=14):
