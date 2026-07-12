@@ -49,6 +49,35 @@ TEXTS = {
         'ai_limit': "⛔️ شما به سقف {limit} تحلیل هوش مصنوعی در روز رسیده‌اید. فردا دوباره امتحان کنید.",
         'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه",
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
+        'journal': {
+            'symbol_prompt': "🪙 نماد ارز:\nمثال: `BTC`",
+            'no_trades': "📋 هیچ معامله‌ای ثبت نشده.",
+            'trades_list_header': "📋 *آخرین معاملات:*\n\n",
+            'no_stats': "📊 آماری موجود نیست.",
+            'stats_template': "📊 *آمار:*\n\n• کل: {total}\n• بسته: {closed}\n• ✅ برنده: {win}\n• ❌ بازنده: {loss}\n• 🎯 وین ریت: {winrate}%\n• 💰 P&L کل: {total_pnl}$",
+            'excel_caption': "📥 فایل اکسل ژورنال",
+            'no_trades_delete': "هیچ معامله‌ای وجود ندارد.",
+            'delete_header': "🗑 *کدام معامله را حذف کنید؟*\n\n",
+            'enter_trade_number': "\nشماره معامله را وارد کنید:",
+            'no_open_trades': "هیچ معامله بازی وجود ندارد.",
+            'close_header': "شماره معامله برای بستن:\n\n",
+            'direction_prompt': "جهت:",
+            'entry_prompt': "💰 قیمت ورود:",
+            'sl_prompt': "🛑 حد ضرر (SL):",
+            'tp_prompt': "🎯 تارگت (TP):",
+            'size_prompt': "📦 حجم ($):",
+            'note_prompt': "📝 یادداشت (یا /skip):",
+            'trade_saved': "✅ *معامله #{id} ثبت شد!*\n\n• {symbol} {direction}\n• ورود: {entry}\n• SL: {sl} | TP: {tp}",
+            'trade_not_found': "❌ معامله #{id} پیدا نشد.",
+            'trade_deleted': "✅ معامله #{id} حذف شد.",
+            'invalid_number': "❌ شماره نامعتبر.",
+            'exit_price_prompt': "💰 قیمت خروج:",
+            'invalid': "❌ نامعتبر.",
+            'pnl_prompt': "📊 P&L به دلار:\nمثال: `+150` یا `-80`",
+            'profit': "✅ سود", 'loss': "❌ ضرر",
+            'trade_closed': "{emoji}: {pnl}$\nمعامله #{id} بسته شد.",
+            'invalid_value': "❌ مقدار نامعتبر.",
+        },
     },
     'en': {
         'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/terms - Terms\n/lang - Language",
@@ -65,6 +94,35 @@ TEXTS = {
         'ai_limit': "⛔️ You've reached the daily limit of {limit} AI analyses. Try again tomorrow.",
         'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min",
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
+        'journal': {
+            'symbol_prompt': "🪙 Coin symbol:\nExample: `BTC`",
+            'no_trades': "📋 No trades recorded yet.",
+            'trades_list_header': "📋 *Recent trades:*\n\n",
+            'no_stats': "📊 No stats available.",
+            'stats_template': "📊 *Stats:*\n\n• Total: {total}\n• Closed: {closed}\n• ✅ Wins: {win}\n• ❌ Losses: {loss}\n• 🎯 Win rate: {winrate}%\n• 💰 Total P&L: {total_pnl}$",
+            'excel_caption': "📥 Journal Excel file",
+            'no_trades_delete': "No trades to delete.",
+            'delete_header': "🗑 *Which trade do you want to delete?*\n\n",
+            'enter_trade_number': "\nEnter the trade number:",
+            'no_open_trades': "No open trades.",
+            'close_header': "Trade number to close:\n\n",
+            'direction_prompt': "Direction:",
+            'entry_prompt': "💰 Entry price:",
+            'sl_prompt': "🛑 Stop Loss (SL):",
+            'tp_prompt': "🎯 Take Profit (TP):",
+            'size_prompt': "📦 Size ($):",
+            'note_prompt': "📝 Note (or /skip):",
+            'trade_saved': "✅ *Trade #{id} saved!*\n\n• {symbol} {direction}\n• Entry: {entry}\n• SL: {sl} | TP: {tp}",
+            'trade_not_found': "❌ Trade #{id} not found.",
+            'trade_deleted': "✅ Trade #{id} deleted.",
+            'invalid_number': "❌ Invalid number.",
+            'exit_price_prompt': "💰 Exit price:",
+            'invalid': "❌ Invalid.",
+            'pnl_prompt': "📊 P&L in dollars:\nExample: `+150` or `-80`",
+            'profit': "✅ Profit", 'loss': "❌ Loss",
+            'trade_closed': "{emoji}: {pnl}$\nTrade #{id} closed.",
+            'invalid_value': "❌ Invalid value.",
+        },
     },
     'ru': {
         'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/terms - Термины\n/lang - Язык",
@@ -81,6 +139,35 @@ TEXTS = {
         'ai_limit': "⛔️ Вы достигли дневного лимита {limit} ИИ-анализов. Попробуйте завтра.",
         'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин",
                        "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
+        'journal': {
+            'symbol_prompt': "🪙 Символ монеты:\nПример: `BTC`",
+            'no_trades': "📋 Сделок пока не зарегистрировано.",
+            'trades_list_header': "📋 *Последние сделки:*\n\n",
+            'no_stats': "📊 Статистика недоступна.",
+            'stats_template': "📊 *Статистика:*\n\n• Всего: {total}\n• Закрыто: {closed}\n• ✅ Прибыльных: {win}\n• ❌ Убыточных: {loss}\n• 🎯 Винрейт: {winrate}%\n• 💰 Общий P&L: {total_pnl}$",
+            'excel_caption': "📥 Excel-файл журнала",
+            'no_trades_delete': "Нет сделок для удаления.",
+            'delete_header': "🗑 *Какую сделку удалить?*\n\n",
+            'enter_trade_number': "\nВведите номер сделки:",
+            'no_open_trades': "Нет открытых сделок.",
+            'close_header': "Номер сделки для закрытия:\n\n",
+            'direction_prompt': "Направление:",
+            'entry_prompt': "💰 Цена входа:",
+            'sl_prompt': "🛑 Стоп-лосс (SL):",
+            'tp_prompt': "🎯 Тейк-профит (TP):",
+            'size_prompt': "📦 Объём ($):",
+            'note_prompt': "📝 Заметка (или /skip):",
+            'trade_saved': "✅ *Сделка #{id} сохранена!*\n\n• {symbol} {direction}\n• Вход: {entry}\n• SL: {sl} | TP: {tp}",
+            'trade_not_found': "❌ Сделка #{id} не найдена.",
+            'trade_deleted': "✅ Сделка #{id} удалена.",
+            'invalid_number': "❌ Неверный номер.",
+            'exit_price_prompt': "💰 Цена выхода:",
+            'invalid': "❌ Неверно.",
+            'pnl_prompt': "📊 P&L в долларах:\nПример: `+150` или `-80`",
+            'profit': "✅ Прибыль", 'loss': "❌ Убыток",
+            'trade_closed': "{emoji}: {pnl}$\nСделка #{id} закрыта.",
+            'invalid_value': "❌ Неверное значение.",
+        },
     }
 }
 
@@ -387,17 +474,18 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     uid = query.from_user.id
     data = query.data
+    J = t(uid, 'journal')
 
     if data == "j_new":
-        await query.message.reply_text("🪙 نماد ارز:\nمثال: `BTC`", parse_mode="Markdown")
+        await query.message.reply_text(J['symbol_prompt'], parse_mode="Markdown")
         return J_SYMBOL
 
     elif data == "j_list":
         trades = get_trades(uid)
         if not trades:
-            await query.message.reply_text("📋 هیچ معامله‌ای ثبت نشده.")
+            await query.message.reply_text(J['no_trades'])
             return
-        text = "📋 *آخرین معاملات:*\n\n"
+        text = J['trades_list_header']
         for trade in trades[-10:]:
             pnl = trade.get('pnl')
             status = trade.get('status', 'open')
@@ -409,27 +497,27 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "j_stats":
         stats = get_stats(uid)
         if not stats:
-            await query.message.reply_text("📊 آماری موجود نیست.")
+            await query.message.reply_text(J['no_stats'])
             return
-        text = f"📊 *آمار:*\n\n• کل: {stats['total']}\n• بسته: {stats['closed']}\n• ✅ برنده: {stats['win']}\n• ❌ بازنده: {stats['loss']}\n• 🎯 وین ریت: {stats['winrate']}%\n• 💰 P&L کل: {stats['total_pnl']}$"
+        text = J['stats_template'].format(**stats)
         await query.message.reply_text(text, parse_mode="Markdown")
 
     elif data == "j_export":
         lang = get_lang(uid)
         buf = export_to_excel(uid, lang)
-        await query.message.reply_document(document=buf, filename=f"journal_{datetime.utcnow().strftime('%Y%m%d')}.xlsx", caption="📥 فایل اکسل ژورنال")
+        await query.message.reply_document(document=buf, filename=f"journal_{datetime.utcnow().strftime('%Y%m%d')}.xlsx", caption=J['excel_caption'])
 
     elif data == "j_delete":
         trades = get_trades(uid)
         if not trades:
-            await query.message.reply_text("هیچ معامله‌ای وجود ندارد.")
+            await query.message.reply_text(J['no_trades_delete'])
             return
-        text = "🗑 *کدام معامله را حذف کنید؟*\n\n"
+        text = J['delete_header']
         for trade in trades[-10:]:
             pnl = trade.get('pnl')
             pnl_text = f" | P&L: {pnl}$" if pnl is not None else ""
             text += f"#{trade['id']} {trade.get('symbol')} {trade.get('direction')} @ {trade.get('entry')}{pnl_text}\n"
-        text += "\nشماره معامله را وارد کنید:"
+        text += J['enter_trade_number']
         await query.message.reply_text(text, parse_mode="Markdown")
         return J_DELETE_ID
 
@@ -437,51 +525,58 @@ async def journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         trades = get_trades(uid)
         open_trades = [t for t in trades if t.get('status') == 'open']
         if not open_trades:
-            await query.message.reply_text("هیچ معامله بازی وجود ندارد.")
+            await query.message.reply_text(J['no_open_trades'])
             return
-        text = "شماره معامله برای بستن:\n\n"
-        for t in open_trades[-5:]:
-            text += f"#{t['id']} {t.get('symbol')} {t.get('direction')} @ {t.get('entry')}\n"
+        text = J['close_header']
+        for t_ in open_trades[-5:]:
+            text += f"#{t_['id']} {t_.get('symbol')} {t_.get('direction')} @ {t_.get('entry')}\n"
         await query.message.reply_text(text)
         return J_CLOSE_ID
 
 
 # ── Journal conversation handlers ──
 async def j_symbol(update, context):
+    uid = update.effective_user.id
     context.user_data['j_symbol'] = update.message.text.strip().upper()
     keyboard = [[InlineKeyboardButton("📈 LONG", callback_data="jd_long"), InlineKeyboardButton("📉 SHORT", callback_data="jd_short")]]
-    await update.message.reply_text("جهت:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(t(uid, 'journal')['direction_prompt'], reply_markup=InlineKeyboardMarkup(keyboard))
     return J_DIRECTION
 
 async def j_direction(update, context):
     query = update.callback_query
     await query.answer()
+    uid = query.from_user.id
     context.user_data['j_direction'] = "LONG" if query.data == "jd_long" else "SHORT"
-    await query.message.reply_text("💰 قیمت ورود:")
+    await query.message.reply_text(t(uid, 'journal')['entry_prompt'])
     return J_ENTRY
 
 async def j_entry(update, context):
+    uid = update.effective_user.id
     context.user_data['j_entry'] = update.message.text.strip()
-    await update.message.reply_text("🛑 حد ضرر (SL):")
+    await update.message.reply_text(t(uid, 'journal')['sl_prompt'])
     return J_SL
 
 async def j_sl(update, context):
+    uid = update.effective_user.id
     context.user_data['j_sl'] = update.message.text.strip()
-    await update.message.reply_text("🎯 تارگت (TP):")
+    await update.message.reply_text(t(uid, 'journal')['tp_prompt'])
     return J_TP
 
 async def j_tp(update, context):
+    uid = update.effective_user.id
     context.user_data['j_tp'] = update.message.text.strip()
-    await update.message.reply_text("📦 حجم ($):")
+    await update.message.reply_text(t(uid, 'journal')['size_prompt'])
     return J_SIZE
 
 async def j_size(update, context):
+    uid = update.effective_user.id
     context.user_data['j_size'] = update.message.text.strip()
-    await update.message.reply_text("📝 یادداشت (یا /skip):")
+    await update.message.reply_text(t(uid, 'journal')['note_prompt'])
     return J_NOTE
 
 async def j_note(update, context):
     uid = update.effective_user.id
+    J = t(uid, 'journal')
     note = "" if update.message.text.strip() == '/skip' else update.message.text.strip()
     trade = {
         'symbol': context.user_data.get('j_symbol'),
@@ -494,45 +589,48 @@ async def j_note(update, context):
     }
     trade_id = add_trade(uid, trade)
     await update.message.reply_text(
-        f"✅ *معامله #{trade_id} ثبت شد!*\n\n"
-        f"• {trade['symbol']} {trade['direction']}\n"
-        f"• ورود: {trade['entry']}\n"
-        f"• SL: {trade['sl']} | TP: {trade['tp']}",
+        J['trade_saved'].format(id=trade_id, symbol=trade['symbol'], direction=trade['direction'],
+                                 entry=trade['entry'], sl=trade['sl'], tp=trade['tp']),
         parse_mode="Markdown"
     )
     return ConversationHandler.END
 
 async def j_delete_id(update, context):
     uid = update.effective_user.id
+    J = t(uid, 'journal')
     try:
         trade_id = int(update.message.text.strip())
         trades = get_trades(uid)
         trade_ids = [t['id'] for t in trades]
         if trade_id not in trade_ids:
-            await update.message.reply_text(f"❌ معامله #{trade_id} پیدا نشد.")
+            await update.message.reply_text(J['trade_not_found'].format(id=trade_id))
             return ConversationHandler.END
         delete_trade(uid, trade_id)
-        await update.message.reply_text(f"✅ معامله #{trade_id} حذف شد.")
+        await update.message.reply_text(J['trade_deleted'].format(id=trade_id))
     except:
-        await update.message.reply_text("❌ شماره نامعتبر.")
+        await update.message.reply_text(J['invalid_number'])
     return ConversationHandler.END
 
 async def j_close_id(update, context):
+    uid = update.effective_user.id
+    J = t(uid, 'journal')
     try:
         context.user_data['j_close_id'] = int(update.message.text.strip())
-        await update.message.reply_text("💰 قیمت خروج:")
+        await update.message.reply_text(J['exit_price_prompt'])
         return J_CLOSE_EXIT
     except:
-        await update.message.reply_text("❌ نامعتبر.")
+        await update.message.reply_text(J['invalid'])
         return ConversationHandler.END
 
 async def j_close_exit(update, context):
+    uid = update.effective_user.id
     context.user_data['j_close_exit'] = update.message.text.strip()
-    await update.message.reply_text("📊 P&L به دلار:\nمثال: `+150` یا `-80`")
+    await update.message.reply_text(t(uid, 'journal')['pnl_prompt'], parse_mode="Markdown")
     return J_CLOSE_PNL
 
 async def j_close_pnl(update, context):
     uid = update.effective_user.id
+    J = t(uid, 'journal')
     try:
         pnl = float(update.message.text.strip().replace('+', ''))
         trade_id = context.user_data.get('j_close_id')
@@ -544,10 +642,10 @@ async def j_close_pnl(update, context):
                 trade['pnl'] = pnl
                 break
         save_journals(data)
-        emoji = "✅ سود" if pnl > 0 else "❌ ضرر"
-        await update.message.reply_text(f"{emoji}: {pnl}$\nمعامله #{trade_id} بسته شد.")
+        emoji = J['profit'] if pnl > 0 else J['loss']
+        await update.message.reply_text(J['trade_closed'].format(emoji=emoji, pnl=pnl, id=trade_id))
     except:
-        await update.message.reply_text("❌ مقدار نامعتبر.")
+        await update.message.reply_text(J['invalid_value'])
     return ConversationHandler.END
 
 
