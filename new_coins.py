@@ -6,6 +6,66 @@ logger = logging.getLogger(__name__)
 
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 
+LABELS = {
+    'fa': {
+        'title': '🆕 کوین‌های واقعاً جدید (حداکثر ۶ ماهه)',
+        'updated': 'آپدیت',
+        'next': 'آپدیت بعدی: فردا ساعت ۹ صبح',
+        'warning': '⚠️ *هشدار مهم:*\nاین لیست صرفاً برای اطلاع‌رسانی است و توصیه سرمایه‌گذاری نیست. کوین‌های جدید ریسک بسیار بالایی دارند. برای سرمایه‌گذاری حتماً تحقیق بیشتری انجام دهید (DYOR): وایت‌پیپر، تیم پروژه و قرارداد را شخصاً بررسی کنید.',
+        'analyze_hint': 'برای تحلیل هر کدام، روی دکمه زیرش بزنید.',
+        'days_old': 'سن',
+        'days_text': 'روز',
+        'no_data': '❌ در حال حاضر کوین جدیدی با معیارهای حداقلی پیدا نشد.',
+        'rank': 'رنک', 'score': 'امتیاز', 'price': 'قیمت', 'market_cap': 'مارکت کپ', 'change_7d': 'تغییر ۷ روزه',
+        'reason_healthy_liquidity': 'نقدینگی سالم',
+        'reason_high_vol_volatility': '⚠️ نوسان حجم بالا',
+        'reason_low_liquidity': '⚠️ نقدینگی پایین',
+        'reason_significant_mcap': 'مارکت کپ قابل توجه',
+        'reason_medium_mcap': 'مارکت کپ متوسط',
+        'reason_small_mcap': '⚠️ مارکت کپ کوچک',
+        'reason_ranked': 'رنک‌دار در CoinGecko',
+        'reason_severe_volatility': '⚠️ نوسان قیمتی شدید',
+    },
+    'en': {
+        'title': '🆕 Genuinely New Coins (Max 6 Months)',
+        'updated': 'Updated',
+        'next': 'Next update: Tomorrow 9 AM',
+        'warning': '⚠️ *Important Warning:*\nThis list is for informational purposes only and is NOT investment advice. New coins carry very high risk. Always do more research before investing (DYOR): check the whitepaper, team, and contract yourself.',
+        'analyze_hint': 'Tap the button below each coin for full analysis.',
+        'days_old': 'Age',
+        'days_text': 'days',
+        'no_data': '❌ No new coins matching minimum criteria found right now.',
+        'rank': 'Rank', 'score': 'Score', 'price': 'Price', 'market_cap': 'Market Cap', 'change_7d': '7-day change',
+        'reason_healthy_liquidity': 'Healthy liquidity',
+        'reason_high_vol_volatility': '⚠️ High volume volatility',
+        'reason_low_liquidity': '⚠️ Low liquidity',
+        'reason_significant_mcap': 'Significant market cap',
+        'reason_medium_mcap': 'Medium market cap',
+        'reason_small_mcap': '⚠️ Small market cap',
+        'reason_ranked': 'Ranked on CoinGecko',
+        'reason_severe_volatility': '⚠️ Severe price volatility',
+    },
+    'ru': {
+        'title': '🆕 Действительно новые монеты (до 6 месяцев)',
+        'updated': 'Обновлено',
+        'next': 'Следующее обновление: Завтра в 9:00',
+        'warning': '⚠️ *Важное предупреждение:*\nЭтот список предоставлен только для информации и НЕ является инвестиционным советом. Новые монеты несут очень высокий риск. Перед инвестированием проведите собственное исследование (DYOR): изучите whitepaper, команду и контракт.',
+        'analyze_hint': 'Нажмите кнопку под монетой для полного анализа.',
+        'days_old': 'Возраст',
+        'days_text': 'дней',
+        'no_data': '❌ Сейчас новых монет, соответствующих минимальным критериям, не найдено.',
+        'rank': 'Ранг', 'score': 'Оценка', 'price': 'Цена', 'market_cap': 'Капитализация', 'change_7d': 'Изменение за 7д',
+        'reason_healthy_liquidity': 'Здоровая ликвидность',
+        'reason_high_vol_volatility': '⚠️ Высокая волатильность объёма',
+        'reason_low_liquidity': '⚠️ Низкая ликвидность',
+        'reason_significant_mcap': 'Значительная капитализация',
+        'reason_medium_mcap': 'Средняя капитализация',
+        'reason_small_mcap': '⚠️ Маленькая капитализация',
+        'reason_ranked': 'Есть ранг на CoinGecko',
+        'reason_severe_volatility': '⚠️ Сильная волатильность цены',
+    },
+}
+
 
 def fetch_coingecko(endpoint, params=None):
     try:
@@ -86,8 +146,9 @@ def get_newly_listed_coins():
     return candidates
 
 
-def score_coin_safety(coin):
+def score_coin_safety(coin, lang='fa'):
     """Heuristic scoring for relative safety signals (informational only)"""
+    L = LABELS.get(lang, LABELS['fa'])
     score = 0
     reasons = []
 
@@ -95,36 +156,36 @@ def score_coin_safety(coin):
 
     if 0.03 <= vol_to_mcap <= 0.6:
         score += 2
-        reasons.append("نقدینگی سالم")
+        reasons.append(L['reason_healthy_liquidity'])
     elif vol_to_mcap > 0.6:
-        reasons.append("⚠️ نوسان حجم بالا")
+        reasons.append(L['reason_high_vol_volatility'])
     else:
-        reasons.append("⚠️ نقدینگی پایین")
+        reasons.append(L['reason_low_liquidity'])
 
     if coin['market_cap'] >= 20_000_000:
         score += 2
-        reasons.append("مارکت کپ قابل توجه")
+        reasons.append(L['reason_significant_mcap'])
     elif coin['market_cap'] >= 5_000_000:
         score += 1
-        reasons.append("مارکت کپ متوسط")
+        reasons.append(L['reason_medium_mcap'])
     else:
-        reasons.append("⚠️ مارکت کپ کوچک")
+        reasons.append(L['reason_small_mcap'])
 
     if coin['rank'] and coin['rank'] <= 500:
         score += 1
-        reasons.append("رنک‌دار در CoinGecko")
+        reasons.append(L['reason_ranked'])
 
     change_7d = coin.get('change_7d')
     if change_7d is not None:
         if -30 <= change_7d <= 80:
             score += 1
         else:
-            reasons.append("⚠️ نوسان قیمتی شدید")
+            reasons.append(L['reason_severe_volatility'])
 
     return score, reasons
 
 
-def get_top_new_coins(limit=10):
+def get_top_new_coins(limit=10, lang='fa'):
     """Get top N genuinely new coins (listed within last 6 months)"""
     candidates = get_newly_listed_coins()
     if not candidates:
@@ -132,7 +193,7 @@ def get_top_new_coins(limit=10):
 
     scored = []
     for coin in candidates:
-        score, reasons = score_coin_safety(coin)
+        score, reasons = score_coin_safety(coin, lang)
         coin['safety_score'] = score
         coin['safety_reasons'] = reasons
         scored.append(coin)
@@ -144,40 +205,7 @@ def get_top_new_coins(limit=10):
 
 def generate_new_coins_message(lang='fa'):
     now = datetime.utcnow()
-
-    labels = {
-        'fa': {
-            'title': '🆕 کوین‌های واقعاً جدید (حداکثر ۶ ماهه)',
-            'updated': 'آپدیت',
-            'next': 'آپدیت بعدی: فردا ساعت ۹ صبح',
-            'warning': '⚠️ *هشدار مهم:*\nاین لیست صرفاً برای اطلاع‌رسانی است و توصیه سرمایه‌گذاری نیست. کوین‌های جدید ریسک بسیار بالایی دارند. برای سرمایه‌گذاری حتماً تحقیق بیشتری انجام دهید (DYOR): وایت‌پیپر، تیم پروژه و قرارداد را شخصاً بررسی کنید.',
-            'analyze_hint': 'برای تحلیل هر کدام، روی دکمه زیرش بزنید.',
-            'days_old': 'سن',
-            'days_text': 'روز',
-            'no_data': '❌ در حال حاضر کوین جدیدی با معیارهای حداقلی پیدا نشد.',
-        },
-        'en': {
-            'title': '🆕 Genuinely New Coins (Max 6 Months)',
-            'updated': 'Updated',
-            'next': 'Next update: Tomorrow 9 AM',
-            'warning': '⚠️ *Important Warning:*\nThis list is for informational purposes only and is NOT investment advice. New coins carry very high risk. Always do more research before investing (DYOR): check the whitepaper, team, and contract yourself.',
-            'analyze_hint': 'Tap the button below each coin for full analysis.',
-            'days_old': 'Age',
-            'days_text': 'days',
-            'no_data': '❌ No new coins matching minimum criteria found right now.',
-        },
-        'ru': {
-            'title': '🆕 Действительно новые монеты (до 6 месяцев)',
-            'updated': 'Обновлено',
-            'next': 'Следующее обновление: Завтра в 9:00',
-            'warning': '⚠️ *Важное предупреждение:*\nЭтот список предоставлен только для информации и НЕ является инвестиционным советом. Новые монеты несут очень высокий риск. Перед инвестированием проведите собственное исследование (DYOR): изучите whitepaper, команду и контракт.',
-            'analyze_hint': 'Нажмите кнопку под монетой для полного анализа.',
-            'days_old': 'Возраст',
-            'days_text': 'дней',
-            'no_data': '❌ Сейчас новых монет, соответствующих минимальным критериям, не найдено.',
-        },
-    }
-    L = labels.get(lang, labels['en'])
+    L = LABELS.get(lang, LABELS['en'])
 
     lines = [
         f"{'═'*28}",
@@ -189,7 +217,7 @@ def generate_new_coins_message(lang='fa'):
         f"",
     ]
 
-    coins = get_top_new_coins(limit=10)
+    coins = get_top_new_coins(limit=10, lang=lang)
     symbols_list = []
 
     if not coins:
@@ -207,12 +235,12 @@ def generate_new_coins_message(lang='fa'):
             lines.append(f"*{i}. {coin['name']} ({sym})*")
             lines.append(f"  📅 {L['days_old']}: {coin['days_old']} {L['days_text']}")
             if coin['rank']:
-                lines.append(f"  🏆 رنک: #{coin['rank']}  |  امتیاز: {stars}")
+                lines.append(f"  🏆 {L['rank']}: #{coin['rank']}  |  {L['score']}: {stars}")
             else:
-                lines.append(f"  امتیاز: {stars}")
-            lines.append(f"  💰 قیمت: ${coin['price']:,.6f}" if coin['price'] else "  💰 قیمت: N/A")
-            lines.append(f"  📊 مارکت کپ: ${coin['market_cap']:,.0f}")
-            lines.append(f"  {change_emoji} تغییر ۷ روزه: {change_text}")
+                lines.append(f"  {L['score']}: {stars}")
+            lines.append(f"  💰 {L['price']}: ${coin['price']:,.6f}" if coin['price'] else f"  💰 {L['price']}: N/A")
+            lines.append(f"  📊 {L['market_cap']}: ${coin['market_cap']:,.0f}")
+            lines.append(f"  {change_emoji} {L['change_7d']}: {change_text}")
             lines.append(f"  🔍 {' | '.join(coin['safety_reasons'][:3])}")
             lines.append("")
 
@@ -226,4 +254,5 @@ def generate_new_coins_message(lang='fa'):
     ]
 
     return "\n".join(lines), symbols_list
+
 
