@@ -9,6 +9,42 @@ COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 
 analyzer = CryptoAnalyzer()
 
+LABELS = {
+    'fa': {
+        'title': '📋 واچلیست هفتگی', 'week': 'هفته',
+        'top6': '🎯 *۶ ارز برتر برای واچ این هفته:*\n',
+        'rank': '🏆 رنک', 'price': '💰 قیمت', 'change_7d': 'تغییر ۷ روزه', 'reason': '🔍 دلیل انتخاب',
+        'technical': 'تکنیکال', 'signal': 'سیگنال', 'long_prob': '📈 احتمال LONG',
+        'no_technical': '⚠️ داده تکنیکال موجود نیست',
+        'worst_week': '📉 *بدترین هفته:*',
+        'reason_top_gainer': 'بیشترین رشد هفتگی 🚀', 'reason_trending': 'ترندینگ هفته 🔥', 'reason_high_volume': 'حجم بالای معاملات 📊',
+        'disclaimer1': 'این لیست صرفاً تکنیکال و داده‌محور است.', 'disclaimer2': 'تحقیق شخصی (DYOR) را فراموش نکنید.',
+        'updated': '🕐 آپدیت', 'next_update': '🔄 آپدیت بعدی: دوشنبه آینده',
+    },
+    'en': {
+        'title': '📋 Weekly Watchlist', 'week': 'Week',
+        'top6': '🎯 *Top 6 coins to watch this week:*\n',
+        'rank': '🏆 Rank', 'price': '💰 Price', 'change_7d': '7-day change', 'reason': '🔍 Reason',
+        'technical': 'Technical', 'signal': 'Signal', 'long_prob': '📈 LONG probability',
+        'no_technical': '⚠️ No technical data available',
+        'worst_week': '📉 *Worst of the week:*',
+        'reason_top_gainer': 'Top weekly gainer 🚀', 'reason_trending': "Trending this week 🔥", 'reason_high_volume': 'High trading volume 📊',
+        'disclaimer1': 'This list is purely technical and data-driven.', 'disclaimer2': "Don't forget your own research (DYOR).",
+        'updated': '🕐 Updated', 'next_update': '🔄 Next update: next Monday',
+    },
+    'ru': {
+        'title': '📋 Еженедельный вотч-лист', 'week': 'Неделя',
+        'top6': '🎯 *Топ-6 монет для наблюдения на этой неделе:*\n',
+        'rank': '🏆 Ранг', 'price': '💰 Цена', 'change_7d': 'Изменение за 7д', 'reason': '🔍 Причина',
+        'technical': 'Технический анализ', 'signal': 'Сигнал', 'long_prob': '📈 Вероятность LONG',
+        'no_technical': '⚠️ Технические данные недоступны',
+        'worst_week': '📉 *Худшие за неделю:*',
+        'reason_top_gainer': 'Лидер роста за неделю 🚀', 'reason_trending': 'В тренде на этой неделе 🔥', 'reason_high_volume': 'Высокий объём торгов 📊',
+        'disclaimer1': 'Этот список основан исключительно на технических данных.', 'disclaimer2': 'Не забывайте о собственном исследовании (DYOR).',
+        'updated': '🕐 Обновлено', 'next_update': '🔄 Следующее обновление: в следующий понедельник',
+    },
+}
+
 
 def fetch_coingecko(endpoint, params=None):
     try:
@@ -98,12 +134,12 @@ def get_coin_details(coin_id):
     }
 
 
-def get_technical_score(symbol):
+def get_technical_score(symbol, lang='fa'):
     """Get technical score from our analyzer"""
     try:
         df = analyzer.fetch_ohlcv(symbol, '1d', limit=100)
-        patterns = analyzer.detect_patterns(df)
-        trend_label, trend_type = analyzer.determine_trend(df)
+        patterns = analyzer.detect_patterns(df, lang)
+        trend_label, trend_type = analyzer.determine_trend(df, lang)
         scores = analyzer.compute_signal(df, patterns, trend_type)
         long_score = scores['long_score']
         short_score = scores['short_score']
@@ -121,14 +157,15 @@ def get_technical_score(symbol):
         return None
 
 
-def generate_watchlist():
+def generate_watchlist(lang='fa'):
     """Generate weekly watchlist combining CoinGecko + Technical Analysis"""
+    L = LABELS.get(lang, LABELS['fa'])
 
     now = datetime.utcnow()
     lines = [
         f"{'═'*30}",
-        f"  📋 واچلیست هفتگی",
-        f"  {now.strftime('%Y-%m-%d')} — هفته {now.isocalendar()[1]}",
+        f"  {L['title']}",
+        f"  {now.strftime('%Y-%m-%d')} — {L['week']} {now.isocalendar()[1]}",
         f"{'═'*30}",
         f"",
     ]
@@ -152,7 +189,7 @@ def generate_watchlist():
                 'volume': coin.get('total_volume', 0),
                 'price': coin.get('current_price', 0),
                 'market_cap_rank': coin.get('market_cap_rank'),
-                'reason': 'بیشترین رشد هفتگی 🚀',
+                'reason': L['reason_top_gainer'],
             })
             seen_symbols.add(sym)
 
@@ -167,7 +204,7 @@ def generate_watchlist():
                 'volume': None,
                 'price': None,
                 'market_cap_rank': coin.get('market_cap_rank'),
-                'reason': 'ترندینگ هفته 🔥',
+                'reason': L['reason_trending'],
             })
             seen_symbols.add(sym)
 
@@ -184,7 +221,7 @@ def generate_watchlist():
                     'volume': coin.get('total_volume', 0),
                     'price': coin.get('current_price', 0),
                     'market_cap_rank': coin.get('market_cap_rank'),
-                    'reason': 'حجم بالای معاملات 📊',
+                    'reason': L['reason_high_volume'],
                 })
                 seen_symbols.add(sym)
 
@@ -193,7 +230,7 @@ def generate_watchlist():
     # Return symbols list for inline buttons
     symbols_list = [c['symbol'] for c in watchlist_coins]
 
-    lines.append(f"🎯 *۶ ارز برتر برای واچ این هفته:*\n")
+    lines.append(L['top6'])
 
     for i, coin in enumerate(watchlist_coins, 1):
         sym = coin['symbol']
@@ -209,28 +246,28 @@ def generate_watchlist():
         lines.append(f"{'─'*30}")
         lines.append(f"*{i}. {name} ({sym})*")
         if rank:
-            lines.append(f"  🏆 رنک: #{rank}")
+            lines.append(f"  {L['rank']}: #{rank}")
         if price:
-            lines.append(f"  💰 قیمت: ${price:,.4f}")
-        lines.append(f"  {change_emoji} تغییر ۷ روزه: {change_text}")
-        lines.append(f"  🔍 دلیل انتخاب: {reason}")
+            lines.append(f"  {L['price']}: ${price:,.4f}")
+        lines.append(f"  {change_emoji} {L['change_7d']}: {change_text}")
+        lines.append(f"  {L['reason']}: {reason}")
 
         # Technical analysis
-        tech = get_technical_score(sym)
+        tech = get_technical_score(sym, lang)
         if tech:
             sig_emoji = "🟢" if tech['signal'] == 'LONG' else "🔴" if tech['signal'] == 'SHORT' else "⚪"
-            lines.append(f"  {sig_emoji} تکنیکال: {tech['trend']}")
-            lines.append(f"  📊 RSI: {tech['rsi']} | سیگنال: {tech['signal']}")
-            lines.append(f"  📈 احتمال LONG: {tech['long_pct']}%")
+            lines.append(f"  {sig_emoji} {L['technical']}: {tech['trend']}")
+            lines.append(f"  📊 RSI: {tech['rsi']} | {L['signal']}: {tech['signal']}")
+            lines.append(f"  {L['long_prob']}: {tech['long_pct']}%")
         else:
-            lines.append(f"  ⚠️ داده تکنیکال موجود نیست")
+            lines.append(f"  {L['no_technical']}")
 
         lines.append("")
 
     # ── Market Summary ──
     lines += [
         f"{'─'*30}",
-        f"📉 *بدترین هفته:*",
+        f"{L['worst_week']}",
     ]
     for coin in losers[:2]:
         sym = coin.get('symbol', '').upper()
@@ -240,12 +277,13 @@ def generate_watchlist():
     lines += [
         f"",
         f"{'─'*30}",
-        f"⚠️ این لیست صرفاً تکنیکال و داده‌محور است.",
-        f"تحقیق شخصی (DYOR) را فراموش نکنید.",
+        f"⚠️ {L['disclaimer1']}",
+        f"{L['disclaimer2']}",
         f"{'═'*30}",
-        f"🕐 آپدیت: {now.strftime('%Y-%m-%d %H:%M')} UTC",
-        f"🔄 آپدیت بعدی: دوشنبه آینده",
+        f"{L['updated']}: {now.strftime('%Y-%m-%d %H:%M')} UTC",
+        f"{L['next_update']}",
     ]
 
     return "\n".join(lines), symbols_list
+
 
