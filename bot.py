@@ -189,9 +189,10 @@ def export_to_excel(uid, lang='fa'):
 async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     subscribed_users.add(uid)
+    lang = get_lang(uid)
     msg = await update.message.reply_text(t(uid, 'watchlist_loading'))
     try:
-        result, symbols_list = generate_watchlist()
+        result, symbols_list = await run_blocking(generate_watchlist, lang, timeout=60)
         await msg.delete()
 
         keyboard = []
@@ -349,15 +350,16 @@ async def watchlist_quick_analyze(update: Update, context: ContextTypes.DEFAULT_
     return WAITING_TIMEFRAME
 
 async def send_weekly_watchlist(context):
-    try:
-        result = generate_watchlist()
-        for uid in subscribed_users:
-            try:
-                await context.bot.send_message(chat_id=uid, text=result, parse_mode="Markdown")
-            except:
-                pass
-    except Exception as e:
-        logger.error(f"Weekly watchlist error: {e}")
+    cache = {}
+    for uid in subscribed_users:
+        try:
+            lang = get_lang(uid)
+            if lang not in cache:
+                cache[lang] = await run_blocking(generate_watchlist, lang, timeout=60)
+            result_text, _ = cache[lang]
+            await context.bot.send_message(chat_id=uid, text=result_text, parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"Weekly watchlist error for user {uid}: {e}")
 
 
 # ── Journal ──
