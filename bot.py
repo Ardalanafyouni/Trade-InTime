@@ -738,7 +738,14 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chart_buf = generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, scores)
         text_result = await run_blocking(analyzer.analyze, symbol, timeframe, lang)
         ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
-        await query.message.reply_photo(photo=chart_buf, caption=f"📊 {symbol}USDT | {tfs.get(timeframe)}")
+        caption = f"📊 {symbol}USDT | {tfs.get(timeframe)}"
+        if analyzer.last_source and analyzer.last_source != 'kucoin':
+            source_label = {"coingecko": "CoinGecko", "coinmarketcap": "CoinMarketCap"}.get(analyzer.last_source, analyzer.last_source)
+            src_note = {"fa": f"\n📡 منبع: {source_label} (روی KuCoin موجود نبود)",
+                        "en": f"\n📡 Source: {source_label} (not available on KuCoin)",
+                        "ru": f"\n📡 Источник: {source_label} (недоступно на KuCoin)"}
+            caption += src_note.get(lang, src_note['en'])
+        await query.message.reply_photo(photo=chart_buf, caption=caption)
         await query.message.reply_text(text_result, parse_mode="Markdown", reply_markup=ai_keyboard)
     except asyncio.TimeoutError:
         timeout_msg = {"fa": "⏱ صرافی خیلی دیر جواب داد. لطفاً چند لحظه دیگه دوباره امتحان کن.",
