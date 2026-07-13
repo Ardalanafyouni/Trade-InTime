@@ -277,7 +277,7 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(uid)
     msg = await update.message.reply_text(t(uid, 'watchlist_loading'))
     try:
-        result, symbols_list = await run_blocking(generate_watchlist, lang, timeout=60)
+        result, symbols_list = await run_blocking(generate_watchlist, lang, timeout=240)
         await msg.delete()
 
         keyboard = []
@@ -729,7 +729,7 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tfs = t(uid, 'timeframes')
     await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT ...")
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=45)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
@@ -775,7 +775,7 @@ async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     msg = await query.message.reply_text(t(uid, 'ai_loading'))
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=45)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
