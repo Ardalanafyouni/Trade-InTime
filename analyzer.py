@@ -28,6 +28,7 @@ LABELS = {
         'next_level': {'support': 'حمایت بعدی', 'resistance': 'مقاومت بعدی'},
         'ui': {
             'analysis_title': 'تحلیل', 'timeframe': 'تایم‌فریم', 'price': 'قیمت', 'trend': 'روند',
+            'data_source': '📡 منبع دیتا',
             'signal': 'سیگنال', 'suggestion': 'پیشنهاد', 'entry': 'ورود', 'rr': 'R/R',
             'key_sr': 'حمایت و مقاومت کلیدی', 'resistances': 'مقاومت‌ها', 'supports': 'حمایت‌ها',
             'scenarios': 'سناریوهای قیمتی', 'bear_scenario': 'سناریو نزولی', 'bull_scenario': 'سناریو صعودی',
@@ -61,6 +62,7 @@ LABELS = {
         'next_level': {'support': 'Next support', 'resistance': 'Next resistance'},
         'ui': {
             'analysis_title': 'Analysis', 'timeframe': 'Timeframe', 'price': 'Price', 'trend': 'Trend',
+            'data_source': '📡 Data source',
             'signal': 'Signal', 'suggestion': 'suggestion', 'entry': 'Entry', 'rr': 'R/R',
             'key_sr': 'Key Support & Resistance', 'resistances': 'Resistances', 'supports': 'Supports',
             'scenarios': 'Price Scenarios', 'bear_scenario': 'Bearish Scenario', 'bull_scenario': 'Bullish Scenario',
@@ -94,6 +96,7 @@ LABELS = {
         'next_level': {'support': 'Следующая поддержка', 'resistance': 'Следующее сопротивление'},
         'ui': {
             'analysis_title': 'Анализ', 'timeframe': 'Таймфрейм', 'price': 'Цена', 'trend': 'Тренд',
+            'data_source': '📡 Источник данных',
             'signal': 'Сигнал', 'suggestion': 'рекомендация', 'entry': 'Вход', 'rr': 'R/R',
             'key_sr': 'Ключевые уровни', 'resistances': 'Сопротивления', 'supports': 'Поддержки',
             'scenarios': 'Ценовые сценарии', 'bear_scenario': 'Медвежий сценарий', 'bull_scenario': 'Бычий сценарий',
@@ -115,6 +118,8 @@ class CryptoAnalyzer:
     COINGECKO_BASE = "https://api.coingecko.com/api/v3"
     CMC_BASE = "https://pro-api.coinmarketcap.com/v2"
     CMC_API_KEY = os.environ.get("CMC_API_KEY")  # only useful on CMC's paid Startup+ tier — see note below
+    SOURCE_ORDER = ['kucoin', 'mexc', 'coingecko', 'coinmarketcap']
+    SOURCE_NAMES = {'kucoin': 'KuCoin', 'mexc': 'MEXC', 'coingecko': 'CoinGecko', 'coinmarketcap': 'CoinMarketCap'}
 
     def __init__(self):
         self.exchange = ccxt.kucoin({'enableRateLimit': True, 'timeout': 15000})
@@ -123,55 +128,57 @@ class CryptoAnalyzer:
         self.last_source = None  # 'kucoin' / 'mexc' / 'coingecko' / 'coinmarketcap' — set by the most recent fetch_ohlcv call
         self.last_source_note = None  # human-readable caveat about the active source, if any
 
-    def fetch_ohlcv(self, symbol, timeframe, limit=300):
-        """Tries KuCoin first (best data quality, real volume), then MEXC
-        (another real exchange, still exact candles + real volume), then
-        falls back to CoinGecko and CoinMarketCap only if the coin isn't
-        listed on either exchange."""
+    def _fetch_ohlcv_exchange(self, exchange, symbol, timeframe, limit):
         pair = f"{symbol}/USDT"
-        try:
-            ohlcv = self.exchange.fetch_ohlcv(pair, timeframe, limit=limit)
-            if not ohlcv:
-                raise ValueError("KuCoin returned no candles")
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            self.last_source = 'kucoin'
-            self.last_source_note = None
-            return df
-        except Exception as e:
-            logger.warning(f"KuCoin fetch failed for {symbol} ({e}); trying MEXC")
+        ohlcv = exchange.fetch_ohlcv(pair, timeframe, limit=limit)
+        if not ohlcv:
+            raise ValueError("exchange returned no candles")
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        return df
 
-        try:
-            ohlcv = self.exchange_mexc.fetch_ohlcv(pair, timeframe, limit=limit)
-            if not ohlcv:
-                raise ValueError("MEXC returned no candles")
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            self.last_source = 'mexc'
-            self.last_source_note = None
-            return df
-        except Exception as e:
-            logger.warning(f"MEXC fetch failed for {symbol} ({e}); trying CoinGecko")
+    def fetch_ohlcv(self, symbol, timeframe, limit=300, preferred_source=None):
+        """Tries sources in order: KuCoin, MEXC (real exchanges, exact
+        candles + real volume), then CoinGecko and CoinMarketCap (approximate
+        granularity, fallback only). If preferred_source is set, that source
+        is tried first — but if it doesn't have the coin, the rest of the
+        chain still runs, so a preference never turns into a hard failure."""
+        order = list(self.SOURCE_ORDER)
+        if preferred_source in order:
+            order.remove(preferred_source)
+            order.insert(0, preferred_source)
 
-        try:
-            df, note = self._fetch_ohlcv_coingecko(symbol, timeframe, limit)
-            self.last_source = 'coingecko'
-            self.last_source_note = note
-            return df
-        except Exception as e:
-            logger.warning(f"CoinGecko fetch failed for {symbol} ({e}); trying CoinMarketCap")
-
-        if self.CMC_API_KEY:
+        tried = []
+        for source in order:
+            tried.append(self.SOURCE_NAMES[source])
             try:
-                df, note = self._fetch_ohlcv_cmc(symbol, timeframe, limit)
-                self.last_source = 'coinmarketcap'
-                self.last_source_note = note
-                return df
-            except Exception as e:
-                logger.warning(f"CoinMarketCap fetch failed for {symbol}: {e}")
+                if source == 'kucoin':
+                    df = self._fetch_ohlcv_exchange(self.exchange, symbol, timeframe, limit)
+                    self.last_source, self.last_source_note = 'kucoin', None
+                    return df
 
-        raise ValueError(f"{symbol} was not found on KuCoin, MEXC, or CoinGecko" +
-                          (", or CoinMarketCap" if self.CMC_API_KEY else ""))
+                elif source == 'mexc':
+                    df = self._fetch_ohlcv_exchange(self.exchange_mexc, symbol, timeframe, limit)
+                    self.last_source, self.last_source_note = 'mexc', None
+                    return df
+
+                elif source == 'coingecko':
+                    df, note = self._fetch_ohlcv_coingecko(symbol, timeframe, limit)
+                    self.last_source, self.last_source_note = 'coingecko', note
+                    return df
+
+                elif source == 'coinmarketcap':
+                    if not self.CMC_API_KEY:
+                        tried.pop()  # not actually attempted — no key configured
+                        continue
+                    df, note = self._fetch_ohlcv_cmc(symbol, timeframe, limit)
+                    self.last_source, self.last_source_note = 'coinmarketcap', note
+                    return df
+            except Exception as e:
+                logger.warning(f"{self.SOURCE_NAMES[source]} fetch failed for {symbol} ({e})")
+                continue
+
+        raise ValueError(f"{symbol} was not found on any source ({', '.join(tried)})")
 
     def _coingecko_lookup_id(self, symbol):
         symbol_u = symbol.upper()
@@ -563,10 +570,11 @@ class CryptoAnalyzer:
         }
 
     # ── MAIN ANALYZE ──
-    def analyze(self, symbol, timeframe, lang='fa'):
+    def analyze(self, symbol, timeframe, lang='fa', preferred_source=None):
         L = LABELS.get(lang, LABELS['fa'])
         ui = L['ui']
-        df = self.fetch_ohlcv(symbol, timeframe, limit=300)
+        df = self.fetch_ohlcv(symbol, timeframe, limit=300, preferred_source=preferred_source)
+        source_display = self.SOURCE_NAMES.get(self.last_source, self.last_source or 'KuCoin')
         price = df['close'].iloc[-1]
 
         patterns = self.detect_patterns(df, lang)
@@ -615,6 +623,7 @@ class CryptoAnalyzer:
             f"",
             f"💰 {ui['price']}: `{price:,.6f}` USDT",
             f"📊 {ui['trend']}: {trend_label}",
+            f"{ui['data_source']}: {source_display}",
             f"",
             f"📡 {ui['signal']}: *{primary}*",
             f"  📈 LONG: {long_pct}%  |  📉 SHORT: {short_pct}%",
