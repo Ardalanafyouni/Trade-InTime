@@ -164,7 +164,7 @@ class CryptoAnalyzer:
         if symbol_u in self._cg_id_cache:
             return self._cg_id_cache[symbol_u]
         try:
-            resp = requests.get(f"{self.COINGECKO_BASE}/search", params={"query": symbol_u}, timeout=10)
+            resp = requests.get(f"{self.COINGECKO_BASE}/search", params={"query": symbol_u}, timeout=8)
             resp.raise_for_status()
             for coin in resp.json().get('coins', []):
                 if coin.get('symbol', '').upper() == symbol_u:
@@ -190,7 +190,7 @@ class CryptoAnalyzer:
         days = days_map.get(timeframe, 30)
 
         resp = requests.get(f"{self.COINGECKO_BASE}/coins/{coin_id}/ohlc",
-                             params={"vs_currency": "usd", "days": days}, timeout=15)
+                             params={"vs_currency": "usd", "days": days}, timeout=8)
         resp.raise_for_status()
         raw = resp.json()
         if not raw:
@@ -216,7 +216,7 @@ class CryptoAnalyzer:
         params = {"symbol": symbol.upper(), "time_period": time_period,
                   "count": min(limit, 300), "convert": "USD"}
         resp = requests.get(f"{self.CMC_BASE}/cryptocurrency/ohlcv/historical",
-                             headers=headers, params=params, timeout=15)
+                             headers=headers, params=params, timeout=8)
         resp.raise_for_status()
         quotes = (resp.json().get('data') or {}).get('quotes', [])
         if not quotes:
