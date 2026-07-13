@@ -277,7 +277,7 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(uid)
     msg = await update.message.reply_text(t(uid, 'watchlist_loading'))
     try:
-        result, symbols_list = await run_blocking(generate_watchlist, lang, timeout=240)
+        result, symbols_list = await run_blocking(generate_watchlist, lang, timeout=340)
         await msg.delete()
 
         keyboard = []
@@ -729,7 +729,7 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tfs = t(uid, 'timeframes')
     await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT ...")
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=45)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
@@ -740,7 +740,7 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
         caption = f"📊 {symbol}USDT | {tfs.get(timeframe)}"
         if analyzer.last_source and analyzer.last_source != 'kucoin':
-            source_label = {"coingecko": "CoinGecko", "coinmarketcap": "CoinMarketCap"}.get(analyzer.last_source, analyzer.last_source)
+            source_label = {"mexc": "MEXC", "coingecko": "CoinGecko", "coinmarketcap": "CoinMarketCap"}.get(analyzer.last_source, analyzer.last_source)
             src_note = {"fa": f"\n📡 منبع: {source_label} (روی KuCoin موجود نبود)",
                         "en": f"\n📡 Source: {source_label} (not available on KuCoin)",
                         "ru": f"\n📡 Источник: {source_label} (недоступно на KuCoin)"}
@@ -775,7 +775,7 @@ async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     msg = await query.message.reply_text(t(uid, 'ai_loading'))
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=45)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
