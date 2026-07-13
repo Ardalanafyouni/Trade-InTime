@@ -35,7 +35,7 @@ WAITING_SYMBOL, WAITING_TIMEFRAME = range(2)
 
 TEXTS = {
     'fa': {
-        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/airdrops - ایردراپ‌های معتبر\n/terms - اصطلاحات\n/lang - زبان",
+        'welcome': "👋 *سلام! ربات تحلیل و ژورنال کریپتو*\n\n/analyze - تحلیل + چارت\n/watchlist - واچلیست هفتگی\n/journal - ژورنال معاملات\n/news - اخبار روز\n/newcoins - کوین‌های نوظهور\n/airdrops - ایردراپ‌های معتبر\n/source - منبع دیتای چارت\n/terms - اصطلاحات\n/lang - زبان",
         'enter_symbol': "🪙 نام ارز را وارد کنید:\nمثال: `BTC`, `ETH`, `SOL`",
         'choose_tf': "تایم‌فریم را انتخاب کنید:",
         'analyzing': "⏳ در حال تحلیل و رسم چارت",
@@ -47,6 +47,10 @@ TEXTS = {
         'ai_button': "🤖 تحلیل هوش مصنوعی (اختصاصی)",
         'ai_loading': "⏳ در حال ترکیب دیتای تکنیکال با اخبار بروز و تولید تحلیل...",
         'ai_limit': "⛔️ شما به سقف {limit} تحلیل هوش مصنوعی در روز رسیده‌اید. فردا دوباره امتحان کنید.",
+        'source_title': "📡 *منبع دیتای چارت و تحلیل*\n\nمنبع فعلی: *{current}*\n\nمی‌تونید انتخاب کنید کدوم منبع اول امتحان بشه. اگه اون منبع کوین رو نداشت، بقیه منابع خودکار امتحان می‌شن.",
+        'source_auto': "🔄 خودکار (پیش‌فرض)",
+        'source_changed': "✅ منبع دیتا روی *{source}* تنظیم شد.",
+        'source_cmc_no_key': " (نیاز به کلید پولی CMC — فعلاً غیرفعاله)",
         'timeframes': {"1m": "1 دقیقه", "5m": "5 دقیقه", "15m": "15 دقیقه",
                        "1h": "1 ساعت", "4h": "4 ساعت", "1d": "روزانه", "1w": "هفتگی"},
         'journal': {
@@ -80,7 +84,7 @@ TEXTS = {
         },
     },
     'en': {
-        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/terms - Terms\n/lang - Language",
+        'welcome': "👋 *Crypto Analysis & Journal Bot*\n\n/analyze - Analysis + Chart\n/watchlist - Weekly Watchlist\n/journal - Trade Journal\n/news - Crypto News\n/newcoins - New Coins\n/airdrops - Verified Airdrops\n/source - Chart Data Source\n/terms - Terms\n/lang - Language",
         'enter_symbol': "🪙 Enter coin symbol:\nExample: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Select timeframe:",
         'analyzing': "⏳ Analyzing and generating chart",
@@ -92,6 +96,10 @@ TEXTS = {
         'ai_button': "🤖 AI Analysis (Custom)",
         'ai_loading': "⏳ Combining technical data with fresh news and generating analysis...",
         'ai_limit': "⛔️ You've reached the daily limit of {limit} AI analyses. Try again tomorrow.",
+        'source_title': "📡 *Chart & Analysis Data Source*\n\nCurrent source: *{current}*\n\nChoose which source is tried first. If it doesn't have the coin, the rest are tried automatically.",
+        'source_auto': "🔄 Auto (default)",
+        'source_changed': "✅ Data source set to *{source}*.",
+        'source_cmc_no_key': " (needs a paid CMC key — currently inactive)",
         'timeframes': {"1m": "1 Min", "5m": "5 Min", "15m": "15 Min",
                        "1h": "1 Hour", "4h": "4 Hour", "1d": "Daily", "1w": "Weekly"},
         'journal': {
@@ -125,7 +133,7 @@ TEXTS = {
         },
     },
     'ru': {
-        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/terms - Термины\n/lang - Язык",
+        'welcome': "👋 *Бот анализа и журнала крипто*\n\n/analyze - Анализ + График\n/watchlist - Вотч-лист\n/journal - Журнал сделок\n/news - Новости\n/newcoins - Новые монеты\n/airdrops - Проверенные аирдропы\n/source - Источник данных\n/terms - Термины\n/lang - Язык",
         'enter_symbol': "🪙 Введите символ:\nПример: `BTC`, `ETH`, `SOL`",
         'choose_tf': "Выберите таймфрейм:",
         'analyzing': "⏳ Анализирую и строю график",
@@ -137,6 +145,10 @@ TEXTS = {
         'ai_button': "🤖 ИИ-анализ (персональный)",
         'ai_loading': "⏳ Объединяю технические данные со свежими новостями и генерирую анализ...",
         'ai_limit': "⛔️ Вы достигли дневного лимита {limit} ИИ-анализов. Попробуйте завтра.",
+        'source_title': "📡 *Источник данных для графика и анализа*\n\nТекущий источник: *{current}*\n\nВыберите, какой источник пробовать первым. Если там нет монеты, остальные проверяются автоматически.",
+        'source_auto': "🔄 Авто (по умолчанию)",
+        'source_changed': "✅ Источник данных установлен на *{source}*.",
+        'source_cmc_no_key': " (нужен платный ключ CMC — сейчас неактивен)",
         'timeframes': {"1m": "1 Мин", "5m": "5 Мин", "15m": "15 Мин",
                        "1h": "1 Час", "4h": "4 Часа", "1d": "День", "1w": "Неделя"},
         'journal': {
@@ -194,6 +206,10 @@ def check_and_use_ai_quota(uid):
 
 # ── Admin access (for /stats) ──
 ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()}
+
+# Saved data-source preference (in-memory, per user)
+user_source_pref = {}  # uid -> 'kucoin' / 'mexc' / 'coingecko' / 'coinmarketcap' / None (auto)
+
 
 def is_admin(uid):
     return uid in ADMIN_IDS
@@ -651,6 +667,50 @@ async def track_activity(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track_user(user.id, user.username, user.first_name)
 
 
+SOURCE_DISPLAY_NAMES = {'kucoin': 'KuCoin', 'mexc': 'MEXC', 'coingecko': 'CoinGecko', 'coinmarketcap': 'CoinMarketCap'}
+
+async def source_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    lang = get_lang(uid)
+    current_key = user_source_pref.get(uid)
+    current_label = SOURCE_DISPLAY_NAMES.get(current_key, t(uid, 'source_auto')) if current_key else t(uid, 'source_auto')
+
+    keyboard = [[InlineKeyboardButton(t(uid, 'source_auto'), callback_data="src_auto")]]
+    row = []
+    for key in ['kucoin', 'mexc', 'coingecko', 'coinmarketcap']:
+        label = SOURCE_DISPLAY_NAMES[key]
+        if key == 'coinmarketcap' and not analyzer.CMC_API_KEY:
+            label += t(uid, 'source_cmc_no_key')
+        row.append(InlineKeyboardButton(label, callback_data=f"src_{key}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    await update.message.reply_text(
+        t(uid, 'source_title').format(current=current_label),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def source_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+    choice = query.data.replace("src_", "")
+
+    if choice == "auto":
+        user_source_pref.pop(uid, None)
+        label = t(uid, 'source_auto')
+    else:
+        user_source_pref[uid] = choice
+        label = SOURCE_DISPLAY_NAMES.get(choice, choice)
+
+    await query.edit_message_text(t(uid, 'source_changed').format(source=label), parse_mode="Markdown")
+
+
 async def whoami_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     uid = user.id
@@ -728,15 +788,16 @@ async def receive_timeframe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(uid)
     tfs = t(uid, 'timeframes')
     await query.edit_message_text(f"{t(uid, 'analyzing')} {symbol}USDT ...")
+    pref_source = user_source_pref.get(uid)
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65, preferred_source=pref_source)
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
         supports, resistances = analyzer.find_support_resistance(df)
         scores = analyzer.compute_signal(df, patterns, trend_type)
         chart_buf = generate_chart(df, symbol, timeframe, patterns, trend_label, trend_type, fib_levels, supports, resistances, scores)
-        text_result = await run_blocking(analyzer.analyze, symbol, timeframe, lang)
+        text_result = await run_blocking(analyzer.analyze, symbol, timeframe, lang, preferred_source=pref_source)
         ai_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(t(uid, 'ai_button'), callback_data=f"ai_{symbol}_{timeframe}")]])
         caption = f"📊 {symbol}USDT | {tfs.get(timeframe)}"
         if analyzer.last_source and analyzer.last_source != 'kucoin':
@@ -775,7 +836,7 @@ async def ai_analysis_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     msg = await query.message.reply_text(t(uid, 'ai_loading'))
     try:
-        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65)
+        df = await run_blocking(analyzer.fetch_ohlcv, symbol, timeframe, limit=300, timeout=65, preferred_source=user_source_pref.get(uid))
         patterns = analyzer.detect_patterns(df, lang)
         trend_label, trend_type = analyzer.determine_trend(df, lang)
         fib_levels, _, _ = analyzer.calc_fibonacci(df)
@@ -858,6 +919,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("whoami", whoami_command))
+    app.add_handler(CommandHandler("source", source_command))
     app.add_handler(CommandHandler("lang", lang_command))
     app.add_handler(CommandHandler("terms", terms_command))
     app.add_handler(CommandHandler("journal", journal_command))
@@ -867,6 +929,7 @@ def main():
     app.add_handler(CommandHandler("airdrops", airdrops_command))
     app.add_handler(CallbackQueryHandler(set_lang, pattern="^lang_"))
     app.add_handler(CallbackQueryHandler(ai_analysis_callback, pattern="^ai_"))
+    app.add_handler(CallbackQueryHandler(source_callback, pattern="^src_"))
 
     # Low-priority group: tracks any user activity (message or button tap)
     # for /stats, without blocking the normal handlers above.
