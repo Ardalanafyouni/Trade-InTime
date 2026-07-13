@@ -118,14 +118,16 @@ class CryptoAnalyzer:
 
     def __init__(self):
         self.exchange = ccxt.kucoin({'enableRateLimit': True, 'timeout': 15000})
+        self.exchange_mexc = ccxt.mexc({'enableRateLimit': True, 'timeout': 15000})
         self._cg_id_cache = {}
-        self.last_source = None  # 'kucoin' / 'coingecko' / 'coinmarketcap' — set by the most recent fetch_ohlcv call
+        self.last_source = None  # 'kucoin' / 'mexc' / 'coingecko' / 'coinmarketcap' — set by the most recent fetch_ohlcv call
         self.last_source_note = None  # human-readable caveat about the active source, if any
 
     def fetch_ohlcv(self, symbol, timeframe, limit=300):
-        """Tries KuCoin first (best data quality, real volume). Falls back to
-        CoinGecko, then CoinMarketCap, only if a coin isn't listed on the
-        previous source(s)."""
+        """Tries KuCoin first (best data quality, real volume), then MEXC
+        (another real exchange, still exact candles + real volume), then
+        falls back to CoinGecko and CoinMarketCap only if the coin isn't
+        listed on either exchange."""
         pair = f"{symbol}/USDT"
         try:
             ohlcv = self.exchange.fetch_ohlcv(pair, timeframe, limit=limit)
@@ -137,7 +139,19 @@ class CryptoAnalyzer:
             self.last_source_note = None
             return df
         except Exception as e:
-            logger.warning(f"KuCoin fetch failed for {symbol} ({e}); trying CoinGecko")
+            logger.warning(f"KuCoin fetch failed for {symbol} ({e}); trying MEXC")
+
+        try:
+            ohlcv = self.exchange_mexc.fetch_ohlcv(pair, timeframe, limit=limit)
+            if not ohlcv:
+                raise ValueError("MEXC returned no candles")
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            self.last_source = 'mexc'
+            self.last_source_note = None
+            return df
+        except Exception as e:
+            logger.warning(f"MEXC fetch failed for {symbol} ({e}); trying CoinGecko")
 
         try:
             df, note = self._fetch_ohlcv_coingecko(symbol, timeframe, limit)
@@ -156,7 +170,7 @@ class CryptoAnalyzer:
             except Exception as e:
                 logger.warning(f"CoinMarketCap fetch failed for {symbol}: {e}")
 
-        raise ValueError(f"{symbol} was not found on KuCoin or CoinGecko" +
+        raise ValueError(f"{symbol} was not found on KuCoin, MEXC, or CoinGecko" +
                           (", or CoinMarketCap" if self.CMC_API_KEY else ""))
 
     def _coingecko_lookup_id(self, symbol):
@@ -200,7 +214,7 @@ class CryptoAnalyzer:
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         df['volume'] = 0.0  # not available on CoinGecko's free OHLC endpoint
         df = df.tail(limit).reset_index(drop=True)
-        note = f"CoinGecko ({granularity_map.get(timeframe, '?')} candles, volume unavailable — {symbol} isn't on KuCoin)"
+        note = f"CoinGecko ({granularity_map.get(timeframe, '?')} candles, volume unavailable — {symbol} isn't on KuCoin or MEXC)"
         return df, note
 
     def _fetch_ohlcv_cmc(self, symbol, timeframe, limit=300):
@@ -232,7 +246,7 @@ class CryptoAnalyzer:
                 'volume': usd.get('volume', 0),
             })
         df = pd.DataFrame(rows).sort_values('timestamp').tail(limit).reset_index(drop=True)
-        note = f"CoinMarketCap ({time_period} candles, approximate for {timeframe} — {symbol} isn't on KuCoin or CoinGecko)"
+        note = f"CoinMarketCap ({time_period} candles, approximate for {timeframe} — {symbol} isn't on KuCoin, MEXC, or CoinGecko)"
         return df, note
 
     # ── Indicators ──
