@@ -1,4 +1,4 @@
-import os
+limport os
 import ccxt
 import requests
 import pandas as pd
@@ -737,5 +737,4 @@ class CryptoAnalyzer:
         ]
 
         return "\n".join(lines)
-
 
